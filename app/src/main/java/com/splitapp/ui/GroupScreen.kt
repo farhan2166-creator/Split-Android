@@ -16,6 +16,7 @@ import com.splitapp.data.SplitViewModel
 import com.splitapp.model.*
 import java.text.DateFormat
 import java.util.Date
+import java.util.UUID
 
 @Composable
 fun GroupScreen(
@@ -130,7 +131,14 @@ fun GroupScreen(
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
                                         MoneyLabel(entry.amountMinor, detail.group.currency)
-                                        Text("Edit ›", color = Muted, style = MaterialTheme.typography.labelSmall)
+                                        TextButton(onClick = {
+                                            val copiedId = UUID.randomUUID().toString()
+                                            val copies = detail.allocations.filter { it.expenseId == entry.id }
+                                                .map { it.copy(expenseId = copiedId) }
+                                            vm.saveExpense(entry.copy(id = copiedId, timestamp = System.currentTimeMillis()), copies) {
+                                                vm.showMessage("Expense copied. You can edit it from the activity list.")
+                                            }
+                                        }, contentPadding = PaddingValues(0.dp)) { Text("Duplicate") }
                                     }
                                 }
                             }
