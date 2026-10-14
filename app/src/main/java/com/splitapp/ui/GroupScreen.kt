@@ -25,6 +25,7 @@ fun GroupScreen(
     onBack: () -> Unit,
     onExpense: (String?) -> Unit,
     onPayment: (String?, String?, Long?) -> Unit,
+    onLedger: () -> Unit,
     onShare: (String, String) -> Unit
 ) {
     var tab by remember(detail.group.id) { mutableIntStateOf(0) }
@@ -77,6 +78,7 @@ fun GroupScreen(
                     DashboardAction("Add expense", "Record a cost", "＋", { onExpense(null) }, Modifier.weight(1f))
                     DashboardAction("Repayment", "Settle up", "↗", { onPayment(null, null, null) }, Modifier.weight(1f))
                 }
+                OutlinedButton(onClick = onLedger, modifier = Modifier.fillMaxWidth()) { Text("Generate PDF Ledger") }
                 Spacer(Modifier.height(4.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf("Activity", "Balances", "Insights").forEachIndexed { index, label ->
@@ -245,6 +247,7 @@ fun GroupScreen(
                             Text("Your group data stays on this device.", style = MaterialTheme.typography.bodyMedium)
                             Spacer(Modifier.height(8.dp))
                             OutlinedButton(onClick = { onShare(summary(detail, balances), "text/plain") }, modifier = Modifier.fillMaxWidth()) { Text("Share balance summary") }
+                            OutlinedButton(onClick = onLedger, modifier = Modifier.fillMaxWidth()) { Text("PDF Ledger: participants and date range") }
                             OutlinedButton(onClick = { onShare(exportCsv(detail), "text/csv") }, modifier = Modifier.fillMaxWidth()) { Text("Export transactions as CSV") }
                         }
                     }
