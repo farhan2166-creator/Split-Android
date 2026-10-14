@@ -1,0 +1,6 @@
+# For local signed builds, copy this to signing.properties and fill in your own keys.
+# Never commit signing.properties or your .jks file.
+storeFile=release-signing.jks
+storePassword=REPLACE_ME
+keyAlias=REPLACE_ME
+keyPassword=REPLACE_ME

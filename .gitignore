@@ -9,3 +9,7 @@ local.properties
 *.aab
 *.jks
 *.keystore
+
+signing.properties
+release-signing.jks
+dist/

@@ -1,0 +1,86 @@
+name: Android Debug APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: split-debug-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  debug-apk:
+    name: Test and build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout full Git history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Verify Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d "$ANDROID_HOME"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Test and compile debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_SEQUENCE=$((1000 + $(git rev-list --count HEAD)))
+          test "$BUILD_SEQUENCE" -le 9999
+          gradle --no-daemon -PsplitCiRunNumber="$BUILD_SEQUENCE" testDebugUnitTest assembleDebug
+
+      - name: Verify APK and package checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          test -x "$AAPT" && test -x "$SIGNER"
+          "$SIGNER" verify "$apk"
+          BADGING="$("$AAPT" dump badging "$apk" | head -n 1)"
+          echo "$BADGING"
+          [[ "$BADGING" == *"name='com.mythos.split'"* ]]
+          VERSION="$(echo "$BADGING" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")"
+          test -n "$VERSION"
+          mkdir -p dist
+          cp "$apk" "dist/Split-Android-v${VERSION}-debug.apk"
+          (cd dist && sha256sum *.apk > SHA256SUMS.txt)
+          echo "### Split Android debug v$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "APK and SHA256 checksum are available in the downloadable artifact." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Split-Android-debug-${{ github.run_number }}-a${{ github.run_attempt }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30

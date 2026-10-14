@@ -16,6 +16,12 @@ require(majorVersion in 0..19 && minorVersion in 0..99 && patchVersion in 0..99)
 val ciRunNumber = providers.gradleProperty("splitCiRunNumber").orNull?.toInt() ?: 0
 require(ciRunNumber in 0..9999) { "Build number must be between 0 and 9999" }
 val appVersionCode = majorVersion * 100_000_000 + minorVersion * 1_000_000 + patchVersion * 10_000 + ciRunNumber
+val signingProperties = Properties().apply {
+    val file = rootProject.file("signing.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasReleaseSigning = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    .all { !signingProperties.getProperty(it).isNullOrBlank() }
 val appVersionName = "$majorVersion.$minorVersion.$patchVersion" +
     if (ciRunNumber > 0) ".build$ciRunNumber" else ""
 
@@ -32,9 +38,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("production") {
+            if (hasReleaseSigning) {
+                storeFile = rootProject.file(signingProperties.getProperty("storeFile"))
+                storePassword = signingProperties.getProperty("storePassword")
+                keyAlias = signingProperties.getProperty("keyAlias")
+                keyPassword = signingProperties.getProperty("keyPassword")
+            }
+        }
+    }
     buildTypes {
-        release {
+        getByName("release") {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("production")
+            }
         }
     }
     compileOptions {
