@@ -22,12 +22,13 @@ fun BackupRestoreDialog(
 ) {
     var mode by remember { mutableStateOf(RestoreMode.MERGE_MISSING) }
     var acknowledge by remember { mutableStateOf(false) }
+    var submitting by remember { mutableStateOf(false) }
     val groupCount = backup.groups.size
     val memberCount = backup.groups.sumOf { it.members.size }
     val expenseCount = backup.groups.sumOf { it.expenses.size }
     val paymentCount = backup.groups.sumOf { it.transfers.size }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!submitting) onDismiss() },
         title = { Text("Restore Split backup") },
         text = {
             Column(
@@ -74,10 +75,10 @@ fun BackupRestoreDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = mode == RestoreMode.MERGE_MISSING || acknowledge,
-                onClick = { onRestore(mode) }
+                enabled = !submitting && (mode == RestoreMode.MERGE_MISSING || acknowledge),
+                onClick = { submitting = true; onRestore(mode) }
             ) { Text(if (mode == RestoreMode.REPLACE_ALL) "Replace all data" else "Import groups") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(enabled = !submitting, onClick = onDismiss) { Text("Cancel") } }
     )
 }
