@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.splitapp.model.*
+import com.splitapp.report.LedgerPdfOptions
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
@@ -52,7 +53,7 @@ private fun calendarMonth(offset: Int): Pair<Long, Long> {
 fun LedgerScreen(
     detail: GroupDetail,
     onBack: () -> Unit,
-    onSave: (LedgerReport) -> Unit
+    onSave: (LedgerReport, LedgerPdfOptions) -> Unit
 ) {
     val context = LocalContext.current
     val members = detail.members
@@ -63,6 +64,8 @@ fun LedgerScreen(
     var startDate by remember(detail.group.id) { mutableLongStateOf(dayStart(System.currentTimeMillis())) }
     var endDate by remember(detail.group.id) { mutableLongStateOf(dayStart(System.currentTimeMillis())) }
     var error by remember { mutableStateOf<String?>(null) }
+    var includeLedgerDetails by remember(detail.group.id) { mutableStateOf(true) }
+    var includeActivity by remember(detail.group.id) { mutableStateOf(true) }
 
     fun pickDate(initial: Long, onPick: (Long) -> Unit) {
         val c = Calendar.getInstance().apply { timeInMillis = initial }
@@ -101,7 +104,7 @@ fun LedgerScreen(
                             bounds == null -> error = "Start date cannot be after end date"
                             else -> try {
                                 error = null
-                                onSave(LedgerReportBuilder.build(detail, ids, bounds))
+                                onSave(LedgerReportBuilder.build(detail, ids, bounds), LedgerPdfOptions(includeLedgerDetails, includeActivity))
                             } catch (e: Exception) {
                                 error = e.message ?: "Unable to prepare ledger"
                             }
@@ -176,6 +179,22 @@ fun LedgerScreen(
                 Text("Opening balance, expense payments, each person's allocated shares, repayments, running balances and closing balance. Includes a group activity appendix.", color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Text("The report is calculated from existing records. Saving a PDF does not change any expenses or balances.", style = MaterialTheme.typography.bodySmall, color = Muted)
+            }
+            SurfaceCard {
+                Text("PDF detail level", style = MaterialTheme.typography.titleMedium)
+                Text("The summary, category spending and closing balances are always included.", style = MaterialTheme.typography.bodySmall, color = Muted)
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Checkbox(checked = includeLedgerDetails, onCheckedChange = { includeLedgerDetails = it })
+                    Text("Detailed participant transactions")
+                }
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Checkbox(checked = includeActivity, onCheckedChange = { includeActivity = it })
+                    Text("Group activity appendix")
+                }
+                Text(
+                    if (includeLedgerDetails || includeActivity) "Detailed statement" else "Compact financial summary",
+                    color = Muted
+                )
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
