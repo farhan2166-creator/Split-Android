@@ -23,7 +23,7 @@ Open this repository in Android Studio (JDK 17, Android SDK 35). It uses Android
 gradle testDebugUnitTest assembleDebug
 ```
 
-In GitHub open **Actions → Android Debug APK** to download a debug artifact from pushes to main, pull requests or manual runs. A separate **Android Release APK** workflow builds a production-key-signed release when dispatched manually. Both workflows use a shared commit-based build numbering sequence.
+In GitHub open **Actions → Android Debug APK** to download a debug artifact from pushes to main, pull requests or manual runs. A separate **Android Release APK** workflow builds a production-key-signed release when dispatched manually. Both workflows derive a build number from the commit count plus the workflow run number. Each new run gets a distinct build code.
 
 ## Data & feature boundaries
 
@@ -52,10 +52,14 @@ Version codes reserve 10,000 build numbers per patch; before exceeding that limi
 ## Debug and signed release APKs
 
 - **Debug APK:** Actions → Android Debug APK → successful run → artifact `Split-Android-debug-...`. On main pushes, pull requests or manual dispatch. Runs unit tests, verifies debug signature, and archives a version-labelled APK and checksum.
-- **Signed release APK:** Configure four GitHub Actions repository secrets: `ANDROID_KEYSTORE_BASE64` (production .jks file encoded as base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. Then Actions → Android Release APK → Run workflow on main. Missing signing secrets cause an explicit failure—an unsigned APK is never published as a release.
+- **Signed release APK:** Configure four GitHub Actions repository secrets: `ANDROID_KEYSTORE_BASE64` (production .jks file encoded as base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. When all four secrets are configured, a signed release APK builds automatically on pushes to `main`, and also on manual runs. Without those secrets, automatic release runs skip the signing job and explain why; manual release runs fail clearly. An unsigned APK is never published as a release.
 - **Optional GitHub Release:** In the manual run select `publish_release` to upload the signed APK and SHA256 checksum as downloadable Release assets. Publishing is opt-in; the Actions artifact is uploaded whether publishing is chosen or not.
 - **Signing compatibility:** Both variants have application ID `com.mythos.split`, but APKs signed with different keys cannot update one another. Do not uninstall an app containing local expenses just to change signatures; uninstalling deletes its private data. Maintain the same private release keystore for all production updates.
-- **Versions:** Both workflows calculate `splitCiRunNumber` as 1000 plus the full Git commit count. This avoids conflicting build codes between two workflows, whose GitHub run counters are independent. Update `version.properties` for MAJOR/MINOR/PATCH. Increment the version or revise the scheme before reaching 8999 commits.
+- **Versions:** Both workflows calculate `splitCiRunNumber` as 1000 + full Git commit count + that workflow’s run number + (run attempt - 1). This ensures that a manual rebuild of the same commit receives a newer version than its previous run. Update `version.properties` for MAJOR/MINOR/PATCH. Increase the version or revise the scheme before this build sequence reaches 9999; each release and debug workflow maintains its own run counter and signing identity.
 - **Local signing:** Copy `signing.properties.example` to ignored `signing.properties`, and store the keystore outside version control. Debug builds never read signing secrets.
 
 Never commit signing passwords, .jks files, or signing.properties.
+
+### Troubleshooting APK rebuilding
+
+A successful **Android Debug APK** workflow produces a downloadable GitHub Actions *artifact*; GitHub wraps the APK and checksum in a ZIP for download, so extract it to install the APK. If you want a new debug build of the same code, choose **Actions → Android Debug APK → Run workflow**. Every new run includes a newer build number in the APK version. A fresh push to `main` also triggers the debug build, including README-only changes. The signed release workflow builds automatically only when all four signing secrets have been configured. If the installed app has a different signing certificate, Android will block an in-place update even when its version is newer; do not uninstall without preserving your private expense data first.
