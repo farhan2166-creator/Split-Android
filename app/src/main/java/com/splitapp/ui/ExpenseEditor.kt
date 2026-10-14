@@ -27,6 +27,12 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
     var note by remember(expenseId) { mutableStateOf(existing?.note.orEmpty()) }
     var category by remember(expenseId) { mutableStateOf(existing?.category ?: "Food") }
     var payer by remember(expenseId) { mutableStateOf(existing?.paidBy ?: detail.members.first().id) }
+    var multiplePayers by remember(expenseId) { mutableStateOf(detail.contributions.count { it.expenseId == expenseId } > 1) }
+    val payerInputs = remember(expenseId) {
+        mutableStateMapOf<String, String>().apply {
+            detail.contributions.filter { it.expenseId == expenseId }.forEach { put(it.memberId, Money.input(it.amountMinor)) }
+        }
+    }
     var mode by remember(expenseId) { mutableStateOf(if (existing == null) Mode.Equal else Mode.Exact) }
     val original = detail.allocations.filter { it.expenseId == expenseId }
     val selected = remember(expenseId) {
@@ -63,10 +69,17 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                 Button(onClick = {
                     val amount = Money.parse(amountText)
                     val allocations = if (amount == null || amount <= 0 || selected.isEmpty()) null else computeAllocations(amount, selected.toList(), mode, inputs)
+                    val funding = if (amount == null || amount <= 0) null else if (multiplePayers) {
+                        detail.members.mapNotNull { member ->
+                            val paid = Money.parse(payerInputs[member.id].orEmpty()) ?: return@mapNotNull null
+                            if (paid > 0) Contribution(existing?.id ?: "", member.id, paid) else null
+                        }.takeIf { parts -> parts.isNotEmpty() && parts.sumOf { it.amountMinor } == amount }
+                    } else listOf(Contribution(existing?.id ?: "", payer, amount))
                     when {
                         title.isBlank() -> error = "Enter a description"
                         amount == null || amount <= 0 -> error = "Enter a valid amount (up to 2 decimal places)"
                         selected.isEmpty() -> error = "Choose at least one person to split with"
+                        funding == null -> error = "Amounts paid by participants must add up to the expense total"
                         allocations == null -> error = when (mode) {
                             Mode.Percent -> "Percentages must add up to exactly 100%"
                             Mode.Exact -> "Exact amounts must add up to the total"
@@ -77,7 +90,8 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                             val id = existing?.id ?: UUID.randomUUID().toString()
                             vm.saveExpense(
                                 Expense(id, detail.group.id, title.trim(), category, amount, payer, note.trim(), existing?.timestamp ?: System.currentTimeMillis()),
-                                allocations.map { Allocation(id, it.key, it.value) }, onBack
+                                allocations.map { Allocation(id, it.key, it.value) }, onBack,
+                                funding.map { it.copy(expenseId = id) }
                             )
                         }
                     }
@@ -108,7 +122,26 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                 }
                 Spacer(Modifier.height(12.dp))
                 Text("Paid by", style = MaterialTheme.typography.labelLarge)
-                PersonPicker(detail.members, payer) { payer = it }
+                if (!multiplePayers) PersonPicker(detail.members, payer) { payer = it }
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Checkbox(checked = multiplePayers, onCheckedChange = { enabled ->
+                        multiplePayers = enabled
+                        if (enabled && payerInputs.isEmpty()) payerInputs[payer] = amountText
+                    })
+                    Text("Paid by multiple people")
+                }
+                if (multiplePayers) {
+                    Text("Enter the amount each person paid. Leave unused people blank.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    detail.members.forEach { member ->
+                        OutlinedTextField(
+                            value = payerInputs[member.id].orEmpty(),
+                            onValueChange = { payerInputs[member.id] = it },
+                            label = { Text("${member.name} paid · ${detail.group.currency}") },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                        )
+                    }
+                }
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 3)
             }
