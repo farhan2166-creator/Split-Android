@@ -58,29 +58,29 @@ fun GroupScreen(
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(bottom = 110.dp),
-            verticalArrangement = Arrangement.spacedBy(11.dp)
+            contentPadding = PaddingValues(bottom = 78.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             item {
-                Spacer(Modifier.height(5.dp))
-                HeroPanel(
-                    kicker = "GROUP OVERVIEW",
-                    title = "${detail.group.currency} ${Money.format(total)}",
-                    supporting = "Shared spending in ${detail.group.name}"
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        Text("${detail.expenses.size} expenses",
-                            color = Color(0xFFDEF1E9), style = MaterialTheme.typography.labelMedium)
-                        Text("${detail.transfers.size} repayments",
-                            color = Color(0xFFDEF1E9), style = MaterialTheme.typography.labelMedium)
+                CompactPanel {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("TOTAL SHARED", style = MaterialTheme.typography.labelSmall, color = Muted)
+                            MoneyLabel(total, detail.group.currency, large = true)
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("${detail.expenses.size} expenses", style = MaterialTheme.typography.labelSmall)
+                            Text("${detail.transfers.size} repayments",
+                                style = MaterialTheme.typography.labelSmall, color = Muted)
+                        }
                     }
                 }
-                Spacer(Modifier.height(9.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DashboardAction("Add expense", "Record a cost", "＋", { onExpense(null) }, Modifier.weight(1f))
-                    DashboardAction("Repayment", "Settle up", "↗", { onPayment(null, null, null) }, Modifier.weight(1f))
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    CompactQuickAction("Expense", "+", { onExpense(null) }, Modifier.weight(1f))
+                    CompactQuickAction("Repay", "↗", { onPayment(null, null, null) }, Modifier.weight(1f))
+                    CompactQuickAction("PDF", "▤", onLedger, Modifier.weight(1f))
                 }
-                OutlinedButton(onClick = onLedger, modifier = Modifier.fillMaxWidth()) { Text("Generate PDF Ledger") }
                 Spacer(Modifier.height(4.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf("Activity", "Balances", "Insights").forEachIndexed { index, label ->
@@ -99,13 +99,11 @@ fun GroupScreen(
                             SectionTitle("Participants", "${detail.members.size} members")
                             TextButton(onClick = { addMember = true }) { Text("+ Add") }
                         }
-                        Text("Tap a name to rename a participant.", color = Muted, style = MaterialTheme.typography.bodySmall)
                         Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             detail.members.forEach { member ->
                                 AssistChip(onClick = { editMemberId = member.id }, label = { Text(member.name) })
                             }
                         }
-                        Spacer(Modifier.height(6.dp))
                         SectionTitle("All activity")
                         OutlinedTextField(
                             value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(),
