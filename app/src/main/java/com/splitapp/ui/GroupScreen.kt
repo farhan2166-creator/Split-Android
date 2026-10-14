@@ -47,7 +47,7 @@ fun GroupScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { if (tab == 1) onPayment(null, null, null) else onExpense(null) },
-                text = { Text(if (tab == 1) "+ Payment" else "+ Expense") }
+                content = { Text(if (tab == 1) "+ Payment" else "+ Expense") }
             )
         }
     ) { padding ->
