@@ -63,14 +63,16 @@ fun GroupScreen(
         ) {
             item {
                 Spacer(Modifier.height(5.dp))
-                SurfaceCard {
-                    Text("TOTAL SHARED EXPENSES", color = Muted, style = MaterialTheme.typography.labelMedium)
-                    Spacer(Modifier.height(7.dp))
-                    MoneyLabel(total, detail.group.currency, large = true)
-                    Spacer(Modifier.height(13.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("${detail.expenses.size} expenses", color = Muted)
-                        Text("${detail.transfers.size} repayments", color = Muted)
+                HeroPanel(
+                    kicker = "GROUP OVERVIEW",
+                    title = "${detail.group.currency} ${Money.format(total)}",
+                    supporting = "Shared spending in ${detail.group.name}"
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                        Text("${detail.expenses.size} expenses",
+                            color = Color(0xFFDEF1E9), style = MaterialTheme.typography.labelMedium)
+                        Text("${detail.transfers.size} repayments",
+                            color = Color(0xFFDEF1E9), style = MaterialTheme.typography.labelMedium)
                     }
                 }
                 Spacer(Modifier.height(9.dp))
@@ -181,7 +183,7 @@ fun GroupScreen(
                                     Text(member.name, fontWeight = FontWeight.Bold)
                                     Text(when { amount > 0 -> "Gets back"; amount < 0 -> "Owes"; else -> "Settled" }, style = MaterialTheme.typography.bodySmall, color = Muted)
                                 }
-                                MoneyLabel(kotlin.math.abs(amount), detail.group.currency, if (amount < 0) Color(0xFFB34F3D) else MaterialTheme.colorScheme.primary)
+                                MoneyLabel(kotlin.math.abs(amount), detail.group.currency, if (amount < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
