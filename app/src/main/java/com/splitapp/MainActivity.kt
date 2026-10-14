@@ -3,6 +3,8 @@ package com.splitapp
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -52,6 +54,21 @@ class MainActivity : ComponentActivity() {
                 val message by vm.message.collectAsState()
                 val hostState = remember { SnackbarHostState() }
                 val scope = rememberCoroutineScope()
+                var pendingCsv by remember { mutableStateOf("") }
+                val saveCsv = rememberLauncherForActivityResult(
+                    ActivityResultContracts.CreateDocument("text/csv")
+                ) { uri ->
+                    if (uri != null) {
+                        try {
+                            contentResolver.openOutputStream(uri)?.use { stream ->
+                                stream.write(pendingCsv.toByteArray(Charsets.UTF_8))
+                            } ?: error("Unable to open document")
+                            vm.showMessage("CSV saved successfully")
+                        } catch (_: Exception) {
+                            vm.showMessage("Could not save the CSV file")
+                        }
+                    }
+                }
                 var screen by remember { mutableStateOf<Screen>(Screen.Home) }
                 val goGroup: (String) -> Unit = { id ->
                     vm.openGroup(id)
@@ -86,11 +103,16 @@ class MainActivity : ComponentActivity() {
                                 onExpense = { id -> screen = Screen.ExpenseForm(current.id, id) },
                                 onPayment = { from, to, amount -> screen = Screen.PaymentForm(current.id, from, to, amount) },
                                 onShare = { text, mime ->
-                                    val intent = Intent(Intent.ACTION_SEND).apply {
-                                        type = mime
-                                        putExtra(Intent.EXTRA_TEXT, text)
+                                    if (mime == "text/csv") {
+                                        pendingCsv = text
+                                        saveCsv.launch("split-transactions.csv")
+                                    } else {
+                                        val intent = Intent(Intent.ACTION_SEND).apply {
+                                            type = mime
+                                            putExtra(Intent.EXTRA_TEXT, text)
+                                        }
+                                        startActivity(Intent.createChooser(intent, "Share from Split"))
                                     }
-                                    startActivity(Intent.createChooser(intent, "Share from Split"))
                                 }
                             )
                         }
