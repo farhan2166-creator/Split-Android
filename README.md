@@ -89,3 +89,16 @@ The home dashboard provides **Export full backup** and **Import or restore backu
 - The entire backup remains on the device unless you manually save or share the selected file. SQLite migrations continue to work; backup format and database version are separate.
 
 PDF and CSV exports are reports and **cannot** be used as restoration sources. Use **Export full backup** for recovery or transfer to another phone. A checksum is not a security signature: never import a backup from an untrusted source.
+
+## Design refresh (v1.3)
+
+Split uses an accessible ocean-and-sage visual system with warm amber accents, subtle outlined cards, comfortable spacing, and consistent typography. Both light and dark modes have carefully chosen surface and text contrast.
+
+- The dashboard prioritizes groups and everyday actions, with a concise overview, search, active/archived navigation and data-recovery shortcuts.
+- Group details present spending in a focused summary with clear Add Expense, Repayment and PDF Ledger actions.
+- Expense, repayment and PDF flows now have consistent instructions, section hierarchy and generous touch targets.
+- In **About → Appearance**, choose **System**, **Light** or **Dark**. The choice is stored only on this device.
+- The app launcher has a dedicated adaptive Split icon, while the application ID remains `com.mythos.split`.
+- Core balance calculations, SQLite records, import/export formats and signing configuration are unchanged.
+
+The interface intentionally avoids neon colors and excessive animation so it remains calm and readable during longer use.
