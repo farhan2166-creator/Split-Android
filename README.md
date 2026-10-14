@@ -76,3 +76,16 @@ Open a group and select **Generate PDF Ledger** (also available in **Insights â†
 - **PDF:** Offline A4 pages with a summary, chronological member ledger tables, balance columns, and the related transaction appendix. Uses Android's built-in PDF renderer and Save As document picker; no photo capture, permissions or external PDF service.
 
 The ledger is a read-only report. Exporting does not alter any expense, settlement or group balance. Transactions are grouped within a single group's currency; there is no cross-currency conversion.
+
+## Full offline backup and restore (v1.2)
+
+The home dashboard provides **Export full backup** and **Import or restore backup**. These operations use Android's system file picker, work offline, and require no storage permission.
+
+- Full backups preserve groups (including archived groups), participants, expenses, multiple payer contributions, expense allocations, repayments, notes, currencies and dates, with stable internal identifiers and exact integer monetary values.
+- Backups use a **versioned JSON format** with a SHA-256 checksum for detection of accidental corruption. The format is **not encrypted**; handle backup files privately.
+- Import validates its checksum, record identifiers, relationships, balanced splits, contribution totals, and member balances before database changes.
+- **Import missing groups** leaves existing groups unchanged and skips groups already present. Identifier conflicts with unrelated local records are rejected.
+- **Replace all local groups** requires an explicit acknowledgment. Changes are transactional: if SQLite rejects a record, the previous database is preserved by rollback. This is destructive, so keep a second copy of your backup before replacing.
+- The entire backup remains on the device unless you manually save or share the selected file. SQLite migrations continue to work; backup format and database version are separate.
+
+PDF and CSV exports are reports and **cannot** be used as restoration sources. Use **Export full backup** for recovery or transfer to another phone. A checksum is not a security signature: never import a backup from an untrusted source.
