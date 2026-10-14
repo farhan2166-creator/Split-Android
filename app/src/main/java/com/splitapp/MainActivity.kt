@@ -2,6 +2,10 @@ package com.splitapp
 
 import android.content.Intent
 import android.os.Bundle
+import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,6 +35,8 @@ import com.splitapp.ui.LedgerScreen
 import com.splitapp.model.LedgerReport
 import com.splitapp.report.PdfLedgerWriter
 import com.splitapp.report.LedgerPdfOptions
+import com.splitapp.data.BackupSnapshot
+import com.splitapp.ui.BackupRestoreDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -61,6 +67,55 @@ class MainActivity : ComponentActivity() {
                 val message by vm.message.collectAsState()
                 val hostState = remember { SnackbarHostState() }
                 val scope = rememberCoroutineScope()
+                var pendingBackupText by remember { mutableStateOf<String?>(null) }
+                var restoreCandidate by remember { mutableStateOf<BackupSnapshot?>(null) }
+                val backupSave = rememberLauncherForActivityResult(
+                    ActivityResultContracts.CreateDocument("application/json")
+                ) { uri ->
+                    val backupText = pendingBackupText
+                    pendingBackupText = null
+                    if (uri != null && backupText != null) scope.launch {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                contentResolver.openOutputStream(uri)?.use { stream ->
+                                    stream.write(backupText.toByteArray(Charsets.UTF_8))
+                                } ?: error("Unable to create backup file")
+                            }
+                            vm.showMessage("Full backup saved")
+                        } catch (e: Exception) {
+                            vm.showMessage("Backup save failed: ${e.message ?: "Unknown error"}")
+                        }
+                    }
+                }
+                val backupOpen = rememberLauncherForActivityResult(
+                    ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    if (uri != null) scope.launch {
+                        try {
+                            val backupText = withContext(Dispatchers.IO) {
+                                val input = contentResolver.openInputStream(uri)
+                                    ?: error("Unable to open backup")
+                                input.use { stream ->
+                                    val output = ByteArrayOutputStream()
+                                    val buffer = ByteArray(8192)
+                                    while (true) {
+                                        val n = stream.read(buffer)
+                                        if (n < 0) break
+                                        if (n == 0) continue
+                                        require(output.size() + n <= 28_000_000) {
+                                            "Selected backup exceeds the supported limit"
+                                        }
+                                        output.write(buffer, 0, n)
+                                    }
+                                    String(output.toByteArray(), Charsets.UTF_8)
+                                }
+                            }
+                            vm.previewBackup(backupText) { restoreCandidate = it }
+                        } catch (e: Exception) {
+                            vm.showMessage("Unable to read backup: ${e.message ?: "Unknown error"}")
+                        }
+                    }
+                }
                 var pendingCsv by remember { mutableStateOf("") }
                 var pendingLedger by remember { mutableStateOf<LedgerReport?>(null) }
                 var pendingPdfOptions by remember { mutableStateOf(LedgerPdfOptions()) }
@@ -121,7 +176,17 @@ class MainActivity : ComponentActivity() {
                 }
                 Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                     when (val current = screen) {
-                        Screen.Home -> GroupsScreen(groups, vm, goGroup)
+                        Screen.Home -> GroupsScreen(
+                            groups, vm, goGroup,
+                            onExportBackup = {
+                                vm.exportBackup { content ->
+                                    pendingBackupText = content
+                                    val stamp = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale.ROOT).format(Date())
+                                    backupSave.launch("Split-Backup-$stamp.json")
+                                }
+                            },
+                            onImportBackup = { backupOpen.launch(arrayOf("*/*")) }
+                        )
                         is Screen.Group -> {
                             val item = detail?.takeIf { it.group.id == current.id }
                             if (item == null) {
@@ -166,6 +231,19 @@ class MainActivity : ComponentActivity() {
                             if (item == null) LoadingPage(back)
                             else PaymentEditor(item, current.from, current.to, current.amount, vm, back)
                         }
+                    }
+                    restoreCandidate?.let { snapshot ->
+                        BackupRestoreDialog(
+                            backup = snapshot,
+                            onDismiss = { restoreCandidate = null },
+                            onRestore = { mode ->
+                                vm.restoreBackup(snapshot, mode) { result ->
+                                    restoreCandidate = null
+                                    screen = Screen.Home
+                                    vm.showMessage("Imported ${result.imported} group(s), skipped ${result.skipped}")
+                                }
+                            }
+                        )
                     }
                     SnackbarHost(hostState, Modifier.align(Alignment.BottomCenter))
                 }
