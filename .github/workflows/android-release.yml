@@ -1,6 +1,8 @@
 name: Android Release APK
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       publish_release:
@@ -21,9 +23,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  signing-check:
+    name: Check production signing setup
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Check release signing secrets
+        id: check
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$KEYSTORE_BASE64" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "All four release signing secrets are configured." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Release signing is not yet configured. Automatic release build is skipped; configure the four Android signing secrets." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   release-apk:
     name: Build signed release APK
-    if: github.ref == 'refs/heads/main'
+    needs: signing-check
+    if: github.ref == 'refs/heads/main' && (needs.signing-check.outputs.ready == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
@@ -84,8 +110,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BUILD_SEQUENCE=$((1000 + $(git rev-list --count HEAD)))
+          BUILD_SEQUENCE=$((1000 + $(git rev-list --count HEAD) + GITHUB_RUN_NUMBER + GITHUB_RUN_ATTEMPT - 1))
           test "$BUILD_SEQUENCE" -le 9999
+          echo "Rebuild version sequence: $BUILD_SEQUENCE"
           gradle --no-daemon -PsplitCiRunNumber="$BUILD_SEQUENCE" testDebugUnitTest assembleRelease
 
       - name: Verify release signature and package APK
@@ -127,7 +154,7 @@ jobs:
   publish:
     name: Publish GitHub Release
     needs: release-apk
-    if: inputs.publish_release == true
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
