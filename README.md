@@ -40,3 +40,11 @@ For each expense, the payer is credited with the amount they paid and every bene
 ## Next meaningful releases
 
 Complete ledger backup/restore with migration tests, multi-payer expenses, attachment handling, explicit-rate multi-currency transactions, optional end-to-end encrypted group synchronization, invitations/access control and conflict handling. Those require separate implementations, not just interface buttons.
+
+## Versioning and identity
+
+The installed Android app is named **Split** and has a distinct application ID, `com.mythos.split`. Its Kotlin source namespace remains `com.splitapp`; these are independent properties. Control the release version using `version.properties` (MAJOR, MINOR, PATCH). GitHub Actions adds its run number to the Android `versionCode` and `versionName`, without rewriting the repository. Each successful run uploads a version-labelled debug APK and SHA256 checksum. The home screen **About** option displays the installed version, build code and package ID.
+
+Version codes reserve 10,000 build numbers per patch; before exceeding that limit, increment the patch version and reset the CI counter strategy. App versions are calculated deterministically so parallel Gradle tasks cannot corrupt a version file. Do not change the application ID again if you want future APKs to upgrade the same installed app.
+
+**Existing installs:** previous experimental builds with `com.splitapp` are a separate application. They will not upgrade into `com.mythos.split`, nor automatically transfer their private SQLite data. Keep the old installation if it contains records you need. Debug APKs are test-signed, not production releases.

@@ -30,10 +30,18 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Test and compile
-        run: gradle --no-daemon testDebugUnitTest assembleDebug
+        run: gradle --no-daemon -PsplitCiRunNumber="$GITHUB_RUN_NUMBER" testDebugUnitTest assembleDebug
+      - name: Package versioned APK and checksum
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          VERSION="$(grep '^VERSION_' version.properties | cut -d= -f2 | paste -sd '.' -)"
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/Split-${VERSION}-build${GITHUB_RUN_NUMBER}-debug.apk"
+          (cd dist && sha256sum *.apk > SHA256SUMS.txt)
+          echo "Split ${VERSION}, build ${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: split-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 14
+          name: Split-Android-${{ github.run_number }}
+          path: dist/
+          retention-days: 30

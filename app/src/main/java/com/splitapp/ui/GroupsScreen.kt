@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.splitapp.data.SplitViewModel
@@ -17,12 +18,18 @@ import java.util.Date
 
 @Composable
 fun GroupsScreen(groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) -> Unit) {
+    val context = LocalContext.current
+    val packageInfo = remember(context) {
+        @Suppress("DEPRECATION")
+        context.packageManager.getPackageInfo(context.packageName, 0)
+    }
+    var showAbout by remember { mutableStateOf(false) }
     var showCreate by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
     var showArchived by remember { mutableStateOf(false) }
     val visibleGroups = remember(groups, filter) { groups.filter { it.archived == showArchived && (it.name.contains(filter.trim(), ignoreCase = true) || it.currency.contains(filter.trim(), ignoreCase = true)) } }
     Scaffold(
-        topBar = { AppHeader("Split", "Fair expenses, easy settlements") },
+        topBar = { AppHeader("Split", "Fair expenses, easy settlements") { TextButton(onClick = { showAbout = true }) { Text("About") } } },
         floatingActionButton = { ExtendedFloatingActionButton(onClick = { showCreate = true }) { Text("+ New group") } }
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp), contentPadding = PaddingValues(bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -66,6 +73,19 @@ fun GroupsScreen(groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) 
             }
         }
     }
+    if (showAbout) AlertDialog(
+        onDismissRequest = { showAbout = false },
+        title = { Text("About Split") },
+        text = {
+            Column {
+                Text("Version: ${packageInfo.versionName ?: "Unknown"}")
+                Text("Build code: ${packageInfo.longVersionCode}")
+                Text("Package: ${context.packageName}")
+                Text("Offline expense sharing")
+            }
+        },
+        confirmButton = { TextButton(onClick = { showAbout = false }) { Text("Close") } }
+    )
     if (showCreate) CreateGroupDialog(onDismiss = { showCreate = false }) { name, currency, firstMember ->
         vm.createGroup(name, currency, firstMember) { id ->
             showCreate = false

@@ -1,8 +1,23 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+val versionProperties = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}
+val majorVersion = versionProperties.getProperty("VERSION_MAJOR").toInt()
+val minorVersion = versionProperties.getProperty("VERSION_MINOR").toInt()
+val patchVersion = versionProperties.getProperty("VERSION_PATCH").toInt()
+require(majorVersion in 0..19 && minorVersion in 0..99 && patchVersion in 0..99)
+val ciRunNumber = providers.gradleProperty("splitCiRunNumber").orNull?.toInt() ?: 0
+require(ciRunNumber in 0..9999) { "Build number must be between 0 and 9999" }
+val appVersionCode = majorVersion * 100_000_000 + minorVersion * 1_000_000 + patchVersion * 10_000 + ciRunNumber
+val appVersionName = "$majorVersion.$minorVersion.$patchVersion" +
+    if (ciRunNumber > 0) ".build$ciRunNumber" else ""
 
 android {
     namespace = "com.splitapp"
@@ -12,8 +27,8 @@ android {
         applicationId = "com.mythos.split"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
