@@ -38,6 +38,7 @@ import com.splitapp.report.LedgerPdfOptions
 import com.splitapp.data.BackupSnapshot
 import com.splitapp.ui.BackupRestoreDialog
 import com.splitapp.ui.SplitTheme
+import com.splitapp.ui.AppearanceMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -60,8 +61,14 @@ sealed interface Screen {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val appearancePrefs = getSharedPreferences("split_ui", MODE_PRIVATE)
         setContent {
-            SplitTheme {
+            var appearance by remember {
+                mutableStateOf(AppearanceMode.entries.firstOrNull {
+                    it.name == appearancePrefs.getString("appearance", "SYSTEM")
+                } ?: AppearanceMode.SYSTEM)
+            }
+            SplitTheme(appearance) {
                 val vm: SplitViewModel = viewModel()
                 val groups by vm.groups.collectAsState()
                 val detail by vm.detail.collectAsState()
@@ -179,6 +186,11 @@ class MainActivity : ComponentActivity() {
                     when (val current = screen) {
                         Screen.Home -> GroupsScreen(
                             groups, vm, goGroup,
+                            appearance = appearance,
+                            onAppearanceChange = { selected ->
+                                appearance = selected
+                                appearancePrefs.edit().putString("appearance", selected.name).apply()
+                            },
                             onExportBackup = {
                                 vm.exportBackup { content ->
                                     pendingBackupText = content
