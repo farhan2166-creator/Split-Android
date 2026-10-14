@@ -53,6 +53,40 @@ class SplitViewModel(application: Application) : AndroidViewModel(application) {
     fun addTransfer(transfer: Transfer, done: () -> Unit) = perform({ database.addTransfer(transfer) }, { done() })
     fun deleteTransfer(groupId: String, transferId: String) = perform({ database.deleteTransfer(groupId, transferId) }, {})
 
+    fun exportBackup(done: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val content = withContext(Dispatchers.IO) {
+                    BackupCodec.encode(database.backupSnapshot())
+                }
+                done(content)
+            } catch (e: Exception) {
+                _message.value = e.message ?: "Unable to create backup"
+            }
+        }
+    }
+
+    fun previewBackup(content: String, done: (BackupSnapshot) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val snapshot = withContext(Dispatchers.IO) { BackupCodec.decode(content) }
+                done(snapshot)
+            } catch (e: Exception) {
+                _message.value = "Backup validation failed: " + (e.message ?: "Invalid file")
+            }
+        }
+    }
+
+    fun restoreBackup(snapshot: BackupSnapshot, mode: RestoreMode, done: (RestoreResult) -> Unit) {
+        perform({
+            database.restoreBackup(snapshot, mode)
+        }, { result ->
+            selectedId = null
+            _detail.value = null
+            done(result)
+        })
+    }
+
     private fun <T> perform(action: () -> T, done: (T) -> Unit) {
         viewModelScope.launch {
             try {
