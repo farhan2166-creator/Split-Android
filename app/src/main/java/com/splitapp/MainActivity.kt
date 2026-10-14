@@ -30,6 +30,7 @@ import com.splitapp.ui.PaymentEditor
 import com.splitapp.ui.LedgerScreen
 import com.splitapp.model.LedgerReport
 import com.splitapp.report.PdfLedgerWriter
+import com.splitapp.report.LedgerPdfOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
                 var pendingCsv by remember { mutableStateOf("") }
                 var pendingLedger by remember { mutableStateOf<LedgerReport?>(null) }
+                var pendingPdfOptions by remember { mutableStateOf(LedgerPdfOptions()) }
                 val savePdf = rememberLauncherForActivityResult(
                     ActivityResultContracts.CreateDocument("application/pdf")
                 ) { uri ->
@@ -72,7 +74,7 @@ class MainActivity : ComponentActivity() {
                             try {
                                 withContext(Dispatchers.IO) {
                                     contentResolver.openOutputStream(uri)?.use { stream ->
-                                        PdfLedgerWriter.write(stream, snapshot)
+                                        PdfLedgerWriter.write(stream, snapshot, pendingPdfOptions)
                                     } ?: error("Unable to open PDF destination")
                                 }
                                 vm.showMessage("PDF ledger saved")
@@ -148,7 +150,8 @@ class MainActivity : ComponentActivity() {
                         is Screen.LedgerForm -> {
                             val item = detail?.takeIf { it.group.id == current.groupId }
                             if (item == null) LoadingPage(back)
-                            else LedgerScreen(item, back) { report ->
+                            else LedgerScreen(item, back) { report, options ->
+                                pendingPdfOptions = options
                                 pendingLedger = report
                                 savePdf.launch("Split-Ledger.pdf")
                             }
