@@ -46,6 +46,7 @@ class SplitViewModel(application: Application) : AndroidViewModel(application) {
     fun createGroup(name: String, currency: String, firstMember: String, done: (String) -> Unit) = perform({ database.createGroup(name, currency, firstMember) }, done)
     fun addMember(groupId: String, name: String, done: () -> Unit = {}) = perform({ database.addMember(groupId, name) }, { done() })
     fun renameMember(groupId: String, memberId: String, name: String, done: () -> Unit = {}) = perform({ database.renameMember(groupId, memberId, name) }, { done() })
+    fun setArchived(groupId: String, archived: Boolean, done: () -> Unit = {}) = perform({ database.setArchived(groupId, archived) }, { done() })
     fun renameGroup(groupId: String, name: String, done: () -> Unit = {}) = perform({ database.renameGroup(groupId, name) }, { done() })
     fun saveExpense(expense: Expense, shares: List<Allocation>, done: () -> Unit, contributions: List<Contribution> = listOf(Contribution(expense.id, expense.paidBy, expense.amountMinor))) = perform({ database.saveExpense(expense, shares, contributions) }, { done() })
     fun deleteExpense(groupId: String, expenseId: String, done: () -> Unit) = perform({ database.deleteExpense(groupId, expenseId) }, { done() })

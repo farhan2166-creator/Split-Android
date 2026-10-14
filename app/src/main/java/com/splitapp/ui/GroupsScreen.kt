@@ -19,7 +19,8 @@ import java.util.Date
 fun GroupsScreen(groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) -> Unit) {
     var showCreate by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
-    val visibleGroups = remember(groups, filter) { groups.filter { it.name.contains(filter.trim(), ignoreCase = true) || it.currency.contains(filter.trim(), ignoreCase = true) } }
+    var showArchived by remember { mutableStateOf(false) }
+    val visibleGroups = remember(groups, filter) { groups.filter { it.archived == showArchived && (it.name.contains(filter.trim(), ignoreCase = true) || it.currency.contains(filter.trim(), ignoreCase = true)) } }
     Scaffold(
         topBar = { AppHeader("Split", "Fair expenses, easy settlements") },
         floatingActionButton = { ExtendedFloatingActionButton(onClick = { showCreate = true }) { Text("+ New group") } }
@@ -44,16 +45,20 @@ fun GroupsScreen(groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) 
                     label = { Text("Find a group") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                SectionTitle("Your groups", "${visibleGroups.size} shown")
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    FilterChip(selected = !showArchived, onClick = { showArchived = false }, label = { Text("Active") })
+                    FilterChip(selected = showArchived, onClick = { showArchived = true }, label = { Text("Archived") })
+                }
+                SectionTitle(if (showArchived) "Archived groups" else "Active groups", "${visibleGroups.size} shown")
             }
-            if (visibleGroups.isEmpty()) item { EmptyState(if (groups.isEmpty()) "No groups yet" else "No matching groups", if (groups.isEmpty()) "Create a group to start sharing expenses." else "Try a different search.") }
+            if (visibleGroups.isEmpty()) item { EmptyState(if (groups.isEmpty()) "No groups yet" else if (showArchived) "No archived groups" else "No matching groups", if (groups.isEmpty()) "Create a group to start sharing expenses." else if (showArchived) "Archived groups appear here." else "Try a different search.") }
             items(visibleGroups, key = { it.id }) { group ->
                 SurfaceCard(Modifier.clickable { onOpen(group.id) }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(group.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(5.dp))
-                            Text("${group.currency}  ·  ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(group.createdAt))}", color = Muted)
+                            Text("${if (group.archived) "Archived · " else ""}${group.currency}  ·  ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(group.createdAt))}", color = Muted)
                         }
                         Text("→", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
                     }

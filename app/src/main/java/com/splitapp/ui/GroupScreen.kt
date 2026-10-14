@@ -31,6 +31,7 @@ fun GroupScreen(
     var addMember by remember { mutableStateOf(false) }
     var editMemberId by remember { mutableStateOf<String?>(null) }
     var rename by remember { mutableStateOf(false) }
+    var archiveConfirm by remember { mutableStateOf(false) }
     var search by remember(detail.group.id) { mutableStateOf("") }
     var categoryFilter by remember(detail.group.id) { mutableStateOf("All") }
     var deleteTransfer by remember { mutableStateOf<String?>(null) }
@@ -41,7 +42,10 @@ fun GroupScreen(
     Scaffold(
         topBar = {
             AppHeader(detail.group.name, "${detail.members.size} people  ·  ${detail.group.currency}", onBack) {
-                TextButton(onClick = { rename = true }) { Text("Edit") }
+                Row {
+                    TextButton(onClick = { archiveConfirm = true }) { Text(if (detail.group.archived) "Restore" else "Archive") }
+                    TextButton(onClick = { rename = true }) { Text("Edit") }
+                }
             }
         },
         floatingActionButton = {
@@ -221,6 +225,20 @@ fun GroupScreen(
                 }
             }
         }
+    }
+    if (archiveConfirm) {
+        AlertDialog(
+            onDismissRequest = { archiveConfirm = false },
+            title = { Text(if (detail.group.archived) "Restore group?" else "Archive group?") },
+            text = { Text(if (detail.group.archived) "Move this group back to Active." else "Move this group to Archived. All expenses and balances will be preserved.") },
+            confirmButton = { TextButton(onClick = {
+                vm.setArchived(detail.group.id, !detail.group.archived) {
+                    archiveConfirm = false
+                    onBack()
+                }
+            }) { Text(if (detail.group.archived) "Restore" else "Archive") } },
+            dismissButton = { TextButton(onClick = { archiveConfirm = false }) { Text("Cancel") } }
+        )
     }
     if (addMember) {
         TextEntryDialog("Add participant", "Name", onDismiss = { addMember = false }) { name ->
