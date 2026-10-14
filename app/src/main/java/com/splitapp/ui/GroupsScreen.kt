@@ -36,7 +36,7 @@ fun GroupsScreen(groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) 
                 SectionTitle("Quick start")
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     DashboardAction("New group", "Start splitting", "＋", { showCreate = true }, Modifier.weight(1f))
-                    DashboardAction("Your groups", "${groups.size} saved", "▦", {}, Modifier.weight(1f))
+                    DashboardAction("Browse all", "${groups.size} saved", "▦", { filter = "" }, Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
