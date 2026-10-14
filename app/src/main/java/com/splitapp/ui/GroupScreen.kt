@@ -28,6 +28,7 @@ fun GroupScreen(
 ) {
     var tab by remember(detail.group.id) { mutableIntStateOf(0) }
     var addMember by remember { mutableStateOf(false) }
+    var editMemberId by remember { mutableStateOf<String?>(null) }
     var rename by remember { mutableStateOf(false) }
     var search by remember(detail.group.id) { mutableStateOf("") }
     var categoryFilter by remember(detail.group.id) { mutableStateOf("All") }
@@ -89,7 +90,12 @@ fun GroupScreen(
                             SectionTitle("Participants", "${detail.members.size} members")
                             TextButton(onClick = { addMember = true }) { Text("+ Add") }
                         }
-                        PersonPicker(detail.members, null, {})
+                        Text("Tap a name to rename a participant.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            detail.members.forEach { member ->
+                                AssistChip(onClick = { editMemberId = member.id }, label = { Text(member.name) })
+                            }
+                        }
                         Spacer(Modifier.height(6.dp))
                         SectionTitle("All activity")
                         OutlinedTextField(
@@ -209,6 +215,14 @@ fun GroupScreen(
     if (addMember) {
         TextEntryDialog("Add participant", "Name", onDismiss = { addMember = false }) { name ->
             vm.addMember(detail.group.id, name) { addMember = false }
+        }
+    }
+    editMemberId?.let { id ->
+        val member = detail.members.firstOrNull { it.id == id }
+        if (member != null) {
+            TextEntryDialog("Rename participant", "Name", initial = member.name, onDismiss = { editMemberId = null }) { name ->
+                vm.renameMember(detail.group.id, id, name) { editMemberId = null }
+            }
         }
     }
     if (rename) {
