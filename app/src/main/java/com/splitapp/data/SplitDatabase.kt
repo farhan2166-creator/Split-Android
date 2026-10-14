@@ -68,6 +68,14 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
         writableDatabase.insertOrThrow("members", null, cv("id" to UUID.randomUUID().toString(), "group_id" to groupId, "name" to name.trim()))
     }
 
+    /** Renaming preserves stable member IDs used by past expenses, shares and repayments. */
+    fun renameMember(groupId: String, memberId: String, name: String) {
+        require(name.isNotBlank())
+        check(writableDatabase.update(
+            "members", cv("name" to name.trim()), "id=? AND group_id=?", arrayOf(memberId, groupId)
+        ) == 1) { "Participant not found" }
+    }
+
     fun renameGroup(groupId: String, name: String) {
         require(name.isNotBlank())
         check(writableDatabase.update("groups", cv("name" to name.trim()), "id=?", arrayOf(groupId)) == 1)
