@@ -49,6 +49,25 @@ class SplitMathTest {
         assertNull(Money.parse("NaN"))
     }
 
+
+    @Test fun multiplePayersPreserveZeroSumLedger() {
+        val expense = Expense("e", "g", "Hotel", "Stay", 12000, "a", "", 0)
+        val shares = listOf(Allocation("e", "a", 4000), Allocation("e", "b", 4000), Allocation("e", "c", 4000))
+        val funding = listOf(Contribution("e", "a", 7000), Contribution("e", "b", 5000))
+        val detail = GroupDetail(group, people, listOf(expense), shares, emptyList(), funding)
+        assertEquals(mapOf("a" to 3000L, "b" to 1000L, "c" to -4000L), SplitMath.balances(detail))
+        val plan = SplitMath.settle(SplitMath.balances(detail))
+        assertEquals(4000L, plan.sumOf { it.amountMinor })
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun invalidMultiPayerTotalsAreRejected() {
+        val expense = Expense("e", "g", "Hotel", "Stay", 12000, "a", "", 0)
+        SplitMath.balances(GroupDetail(group, people, listOf(expense),
+            listOf(Allocation("e", "a", 12000)), emptyList(),
+            listOf(Contribution("e", "a", 5000), Contribution("e", "b", 6000))))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun ledgerRejectsMismatchedShares() {
         val e = Expense("e", "g", "Dinner", "Food", 100, "a", "", 0)
