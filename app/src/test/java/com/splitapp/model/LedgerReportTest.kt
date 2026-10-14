@@ -37,7 +37,7 @@ class LedgerReportTest {
         val report = LedgerReportBuilder.build(detail(), setOf("a"), LedgerRange(2000, 5000, "Custom"))
         val ali = report.sections.single()
         assertEquals(3000L, ali.openingMinor)
-        assertEquals(3000L, ali.paidMinor - ali.shareMinor + ali.sentMinor - ali.receivedMinor + ali.openingMinor)
+        assertEquals(1000L, ali.paidMinor - ali.shareMinor + ali.sentMinor - ali.receivedMinor + ali.openingMinor)
         assertEquals(1000L, ali.closingMinor)
         assertEquals(2, ali.lines.size)
     }
