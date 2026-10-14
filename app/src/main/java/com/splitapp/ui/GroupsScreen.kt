@@ -18,6 +18,8 @@ import java.util.Date
 @Composable
 fun GroupsScreen(groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) -> Unit) {
     var showCreate by remember { mutableStateOf(false) }
+    var filter by remember { mutableStateOf("") }
+    val visibleGroups = remember(groups, filter) { groups.filter { it.name.contains(filter.trim(), ignoreCase = true) || it.currency.contains(filter.trim(), ignoreCase = true) } }
     Scaffold(
         topBar = { AppHeader("Split", "Fair expenses, easy settlements") },
         floatingActionButton = { ExtendedFloatingActionButton(onClick = { showCreate = true }, text = { Text("+ New group") }) }
@@ -30,10 +32,22 @@ fun GroupsScreen(groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) 
                     Spacer(Modifier.height(8.dp))
                     Text("Organize a trip, home, dinner or event. Record what everyone pays, then settle the difference.", style = MaterialTheme.typography.bodyMedium, color = Muted)
                 }
-                SectionTitle("Your groups", "${groups.size} total")
+                Spacer(Modifier.height(12.dp))
+                SectionTitle("Quick start")
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DashboardAction("New group", "Start splitting", "＋", { showCreate = true }, Modifier.weight(1f))
+                    DashboardAction("Your groups", "${groups.size} saved", "▦", {}, Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = filter, onValueChange = { filter = it },
+                    label = { Text("Find a group") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                SectionTitle("Your groups", "${visibleGroups.size} shown")
             }
-            if (groups.isEmpty()) item { EmptyState("No groups yet", "Create a group to start sharing expenses.") }
-            items(groups, key = { it.id }) { group ->
+            if (visibleGroups.isEmpty()) item { EmptyState(if (groups.isEmpty()) "No groups yet" else "No matching groups", if (groups.isEmpty()) "Create a group to start sharing expenses." else "Try a different search.") }
+            items(visibleGroups, key = { it.id }) { group ->
                 SurfaceCard(Modifier.clickable { onOpen(group.id) }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
