@@ -16,12 +16,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import com.splitapp.model.Member
 import com.splitapp.model.Money
 
-internal val DeepGreen = Color(0xFF193A32)
+internal val DeepGreen = Color(0xFF00675B)
+internal val AccentOrange = Color(0xFFD97706)
 internal val Muted = Color(0xFF658078)
-internal val Pale = Color(0xFFE8F2ED)
+internal val Pale = Color(0xFFE4F3EE)
 
 @Composable
 fun AppHeader(title: String, subtitle: String? = null, onBack: (() -> Unit)? = null, action: (@Composable () -> Unit)? = null) {
@@ -45,8 +47,8 @@ fun SurfaceCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) { Column(Modifier.padding(18.dp), content = content) }
 }
 
@@ -101,3 +103,20 @@ fun LoadingPage(back: () -> Unit) {
 }
 
 fun csvCell(value: String): String = "\"" + value.replace("\"", "\"\"").replace("\r", " ").replace("\n", " ") + "\""
+
+@Composable
+fun DashboardAction(title: String, subtitle: String, symbol: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        onClick = onClick, modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(symbol, fontSize = 28.sp, color = AccentOrange)
+            Spacer(Modifier.height(7.dp))
+            Text(title, fontWeight = FontWeight.Bold, color = DeepGreen, textAlign = TextAlign.Center)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = Muted, textAlign = TextAlign.Center)
+        }
+    }
+}
