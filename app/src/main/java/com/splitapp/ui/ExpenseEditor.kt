@@ -108,25 +108,20 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
         }
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(15.dp)
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            HeroPanel(
-                kicker = "EASY EXPENSES",
-                title = if (existing == null) "Add a shared expense" else "Fine-tune this expense",
-                supporting = "Record who paid, choose the people involved, and preview a fair split."
-            )
-            SurfaceCard {
+            CompactPanel {
                 Text("01  ·  EXPENSE DETAILS", color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(6.dp))
                 OutlinedTextField(title, { title = it }, label = { Text("What was this for?") }, placeholder = { Text("Dinner, hotel, groceries...") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     amountText, { amountText = it }, label = { Text("Amount · ${detail.group.currency}") },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(6.dp))
                 OutlinedButton(onClick = {
                     val calendar = Calendar.getInstance().apply { timeInMillis = expenseDate }
                     android.app.DatePickerDialog(context, { _, year, month, day ->
@@ -141,13 +136,13 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                 }, modifier = Modifier.fillMaxWidth()) {
                     Text("Date: ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(expenseDate))} · Change")
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(7.dp))
                 Text("Category", style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(5.dp))
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     categories.forEach { item -> FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item) }) }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(7.dp))
                 Text("Who covered the bill?", style = MaterialTheme.typography.labelLarge)
                 if (!multiplePayers) PersonPicker(detail.members, payer) { payer = it }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -169,10 +164,10 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                         )
                     }
                 }
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 3)
+                Spacer(Modifier.height(6.dp))
+                OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 1, maxLines = 2)
             }
-            SurfaceCard {
+            CompactPanel {
                 Text("02  ·  SPLIT BETWEEN", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(6.dp))
                 Text("Choose who benefited. The person who paid can be included or excluded.", color = Muted, style = MaterialTheme.typography.bodySmall)
@@ -197,7 +192,7 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                         }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(6.dp))
                 Text("Split method", style = MaterialTheme.typography.labelLarge)
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Mode.entries.forEach { option ->
@@ -207,9 +202,9 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                 val amount = Money.parse(amountText)
                 val preview = if (amount != null && amount > 0) computeAllocations(amount, selected.toList(), mode, inputs) else null
                 if (preview != null) {
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(6.dp))
                     HorizontalDivider()
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(6.dp))
                     detail.members.filter { it.id in selected }.forEach { member ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(member.name, color = Muted)
