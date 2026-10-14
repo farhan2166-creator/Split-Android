@@ -126,7 +126,7 @@ fun GroupScreen(
                                     Spacer(Modifier.width(12.dp))
                                     Column(Modifier.weight(1f)) {
                                         Text(entry.title, fontWeight = FontWeight.SemiBold)
-                                        Text("${names[entry.paidBy] ?: "Unknown"} paid · ${entry.category}", color = Muted, style = MaterialTheme.typography.bodySmall)
+                                        Text(detail.contributions.filter { it.expenseId == entry.id }.let { contributions -> if (contributions.size > 1) "${contributions.size} people paid · ${entry.category}" else "${names[entry.paidBy] ?: "Unknown"} paid · ${entry.category}" }, color = Muted, style = MaterialTheme.typography.bodySmall)
                                         Text(date(entry.timestamp), color = Muted, style = MaterialTheme.typography.labelSmall)
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
@@ -135,9 +135,11 @@ fun GroupScreen(
                                             val copiedId = UUID.randomUUID().toString()
                                             val copies = detail.allocations.filter { it.expenseId == entry.id }
                                                 .map { it.copy(expenseId = copiedId) }
-                                            vm.saveExpense(entry.copy(id = copiedId, timestamp = System.currentTimeMillis()), copies) {
+                                            val funding = detail.contributions.filter { it.expenseId == entry.id }
+                                                .map { it.copy(expenseId = copiedId) }
+                                            vm.saveExpense(entry.copy(id = copiedId, timestamp = System.currentTimeMillis()), copies, {
                                                 vm.showMessage("Expense copied. You can edit it from the activity list.")
-                                            }
+                                            }, funding.ifEmpty { listOf(Contribution(copiedId, entry.paidBy, entry.amountMinor)) })
                                         }, contentPadding = PaddingValues(0.dp)) { Text("Duplicate") }
                                     }
                                 }
@@ -283,6 +285,12 @@ private fun exportCsv(detail: GroupDetail): String = buildString {
     appendLine("type,date,title,from,to,amount,currency,category,note")
     detail.expenses.forEach { expense ->
         appendLine(listOf("expense", date(expense.timestamp), expense.title, names[expense.paidBy].orEmpty(), "", Money.input(expense.amountMinor), detail.group.currency, expense.category, expense.note).joinToString(",", transform = ::csvCell))
+    }
+    detail.contributions.forEach { contribution ->
+        appendLine(listOf("contribution", "", "", names[contribution.memberId].orEmpty(), "", Money.input(contribution.amountMinor), detail.group.currency, "", "expense_id=${contribution.expenseId}").joinToString(",", transform = ::csvCell))
+    }
+    detail.allocations.forEach { allocation ->
+        appendLine(listOf("split", "", "", "", names[allocation.memberId].orEmpty(), Money.input(allocation.amountMinor), detail.group.currency, "", "expense_id=${allocation.expenseId}").joinToString(",", transform = ::csvCell))
     }
     detail.transfers.forEach { transfer ->
         appendLine(listOf("repayment", date(transfer.timestamp), "Repayment", names[transfer.fromMember].orEmpty(), names[transfer.toMember].orEmpty(), Money.input(transfer.amountMinor), detail.group.currency, "", transfer.note).joinToString(",", transform = ::csvCell))
