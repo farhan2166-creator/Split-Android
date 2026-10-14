@@ -81,10 +81,17 @@ private val ReadableType = Typography().let { base ->
     )
 }
 
+enum class AppearanceMode { SYSTEM, LIGHT, DARK }
+
 @Composable
-fun SplitTheme(content: @Composable () -> Unit) {
+fun SplitTheme(mode: AppearanceMode = AppearanceMode.SYSTEM, content: @Composable () -> Unit) {
+    val dark = when (mode) {
+        AppearanceMode.SYSTEM -> isSystemInDarkTheme()
+        AppearanceMode.LIGHT -> false
+        AppearanceMode.DARK -> true
+    }
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) Dark else Light,
+        colorScheme = if (dark) Dark else Light,
         typography = ReadableType,
         shapes = Rounded,
         content = content
