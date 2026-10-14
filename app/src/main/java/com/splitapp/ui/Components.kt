@@ -15,6 +15,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.splitapp.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,15 +46,12 @@ fun AppHeader(
                 }
                 Spacer(Modifier.width(6.dp))
             } else {
-                Box(
-                    Modifier.size(40.dp).clip(RoundedCornerShape(13.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("S", color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                }
-                Spacer(Modifier.width(12.dp))
+                Image(
+                    painter = painterResource(R.drawable.ic_split_foreground),
+                    contentDescription = "Split app icon",
+                    modifier = Modifier.size(43.dp)
+                )
+                Spacer(Modifier.width(8.dp))
             }
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleLarge,
@@ -242,5 +242,42 @@ fun DashboardAction(
             Text(subtitle, style = MaterialTheme.typography.labelSmall,
                 color = Muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
+    }
+}
+
+/** The most important screen actions stay visible, without tall dashboard tiles. */
+@Composable
+fun CompactQuickAction(
+    title: String,
+    symbol: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(46.dp),
+        shape = MaterialTheme.shapes.medium,
+        contentPadding = PaddingValues(horizontal = 7.dp)
+    ) {
+        Text(symbol, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+        Spacer(Modifier.width(4.dp))
+        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+/** Shorter card padding for compact, one-screen forms and dashboard summaries. */
+@Composable
+fun CompactPanel(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), content = content)
     }
 }
