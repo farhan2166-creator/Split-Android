@@ -19,8 +19,8 @@ object PdfLedgerWriter {
     private const val RIGHT = 557f
     private const val TOP = 64f
     private const val BOTTOM = 786f
-    private const val GREEN = 0xFF08745D.toInt()
-    private const val MUTED = 0xFF58726A.toInt()
+    private val GREEN = 0xFF08745D.toInt()
+    private val MUTED = 0xFF58726A.toInt()
     private const val ROW_HEIGHT = 24f
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
