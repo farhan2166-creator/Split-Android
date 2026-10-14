@@ -46,12 +46,18 @@ fun PaymentEditor(
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
+            HeroPanel(
+                kicker = "SETTLE WITH CLARITY",
+                title = "One payment. Clear balances.",
+                supporting = "Record real transfers only. Your group balances will update instantly."
+            )
             SurfaceCard {
-                Text("WHO PAID?", style = MaterialTheme.typography.labelMedium, color = Muted)
+                Text("01  ·  WHO PAID?", style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(7.dp))
                 PersonPicker(detail.members, from) { from = it }
                 Spacer(Modifier.height(18.dp))
-                Text("WHO RECEIVED?", style = MaterialTheme.typography.labelMedium, color = Muted)
+                Text("02  ·  WHO RECEIVED?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(7.dp))
                 PersonPicker(detail.members, to) { to = it }
                 Spacer(Modifier.height(18.dp))
