@@ -45,24 +45,19 @@ fun PaymentEditor(
             }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
-            HeroPanel(
-                kicker = "SETTLE WITH CLARITY",
-                title = "One payment. Clear balances.",
-                supporting = "Record real transfers only. Your group balances will update instantly."
-            )
-            SurfaceCard {
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            CompactPanel {
                 Text("01  ·  WHO PAID?", style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(7.dp))
                 PersonPicker(detail.members, from) { from = it }
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(8.dp))
                 Text("02  ·  WHO RECEIVED?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(7.dp))
                 PersonPicker(detail.members, to) { to = it }
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(amountText, { amountText = it }, label = { Text("Amount · ${detail.group.currency}") }, modifier = Modifier.fillMaxWidth(), singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(6.dp))
                 OutlinedTextField(note, { note = it }, label = { Text("Reference or note (optional)") }, modifier = Modifier.fillMaxWidth())
             }
             Text("Only record a repayment when the money has actually changed hands. This reduces the payer's outstanding debt; it does not add to the group's spending total.", style = MaterialTheme.typography.bodyMedium, color = Muted)
