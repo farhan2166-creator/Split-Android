@@ -4,7 +4,8 @@ data class SplitGroup(
     val id: String,
     val name: String,
     val currency: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val archived: Boolean = false
 )
 
 data class Member(val id: String, val groupId: String, val name: String)
