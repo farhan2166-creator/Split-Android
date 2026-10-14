@@ -213,6 +213,32 @@ fun GroupScreen(
                             LinearProgressIndicator(progress = { if (total == 0L) 0f else entry.value.toFloat() / total.toFloat() }, modifier = Modifier.fillMaxWidth())
                         }
                     }
+                    item { SectionTitle("Spending by member") }
+                    val spendByMember = detail.members.associate { member ->
+                        member.id to detail.expenses.sumOf { expense ->
+                            detail.allocations.filter { it.expenseId == expense.id && it.memberId == member.id }.sumOf { it.amountMinor }
+                        }
+                    }
+                    items(detail.members, key = { "spent_" + it.id }) { member ->
+                        SurfaceCard {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(member.name, Modifier.weight(1f))
+                                MoneyLabel(spendByMember[member.id] ?: 0L, detail.group.currency)
+                            }
+                        }
+                    }
+                    item { SectionTitle("Monthly spending") }
+                    val monthly = detail.expenses.groupBy {
+                        java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.ROOT).format(Date(it.timestamp))
+                    }.mapValues { pair -> pair.value.sumOf { it.amountMinor } }.toSortedMap(compareByDescending { it })
+                    items(monthly.entries.toList(), key = { "month_" + it.key }) { entry ->
+                        SurfaceCard {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(entry.key, Modifier.weight(1f))
+                                MoneyLabel(entry.value, detail.group.currency)
+                            }
+                        }
+                    }
                     item {
                         SectionTitle("Records & sharing")
                         SurfaceCard {
