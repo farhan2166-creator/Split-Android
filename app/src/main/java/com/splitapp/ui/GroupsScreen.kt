@@ -33,80 +33,77 @@ fun GroupsScreen(
     var showArchived by remember { mutableStateOf(false) }
     val visibleGroups = remember(groups, filter, showArchived) { groups.filter { it.archived == showArchived && (it.name.contains(filter.trim(), ignoreCase = true) || it.currency.contains(filter.trim(), ignoreCase = true)) } }
     Scaffold(
-        topBar = { AppHeader("Split", "Fair expenses, easy settlements") { TextButton(onClick = { showAbout = true }) { Text("About") } } },
-        floatingActionButton = { ExtendedFloatingActionButton(onClick = { showCreate = true }) { Text("+ New group") } }
+        topBar = { AppHeader("Split", "Fair expenses, easy settlements") {
+            TextButton(onClick = { showAbout = true }) { Text("About") }
+        } }
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp), contentPadding = PaddingValues(bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item {
-                Spacer(Modifier.height(10.dp))
-                HeroPanel(
-                    kicker = "YOUR SHARED SPACE",
-                    title = "Share moments. Not money worries.",
-                    supporting = "Organise everyday expenses and settle with confidence."
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                        Column {
-                            Text("${groups.count { !it.archived }}", color = androidx.compose.ui.graphics.Color.White,
-                                style = MaterialTheme.typography.headlineSmall)
-                            Text("Active groups", color = androidx.compose.ui.graphics.Color(0xFFCFEBE3),
-                                style = MaterialTheme.typography.labelMedium)
-                        }
-                        Column {
-                            Text("${groups.count { it.archived }}", color = androidx.compose.ui.graphics.Color.White,
-                                style = MaterialTheme.typography.headlineSmall)
-                            Text("Archived", color = androidx.compose.ui.graphics.Color(0xFFCFEBE3),
-                                style = MaterialTheme.typography.labelMedium)
-                        }
+        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 14.dp)) {
+            CompactPanel {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("YOUR SHARED SPACE", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary)
+                        Text("${groups.count { !it.archived }} active · ${groups.count { it.archived }} archived",
+                            fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     }
+                    Text("◎", style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary)
                 }
-                Spacer(Modifier.height(12.dp))
-                SectionTitle("Quick actions")
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DashboardAction("New group", "Start splitting", "＋", { showCreate = true }, Modifier.weight(1f))
-                    DashboardAction("Back up", "Keep data safe", "↥", onExportBackup, Modifier.weight(1f))
-                }
-                Spacer(Modifier.height(10.dp))
-                SectionTitle("Your groups")
-                OutlinedTextField(
-                    value = filter, onValueChange = { filter = it },
-                    label = { Text("Search your groups") }, singleLine = true,
-                    leadingIcon = { Text("⌕") },
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth()
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                CompactQuickAction("New group", "+", { showCreate = true }, Modifier.weight(1f))
+                CompactQuickAction("Backup", "↥", onExportBackup, Modifier.weight(1f))
+                CompactQuickAction("Restore", "↧", onImportBackup, Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = filter, onValueChange = { filter = it },
+                placeholder = { Text("Search groups") }, singleLine = true,
+                leadingIcon = { Text("⌕") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = !showArchived, onClick = { showArchived = false }, label = { Text("Active") })
+                FilterChip(selected = showArchived, onClick = { showArchived = true }, label = { Text("Archived") })
+                Spacer(Modifier.weight(1f))
+                Text("${visibleGroups.size} groups", style = MaterialTheme.typography.labelSmall, color = Muted)
+            }
+            if (visibleGroups.isEmpty()) {
+                EmptyState(
+                    if (groups.isEmpty()) "No groups yet" else "No matching groups",
+                    if (groups.isEmpty()) "Create a group to start splitting expenses." else "Change the filter or search."
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    FilterChip(selected = !showArchived, onClick = { showArchived = false }, label = { Text("Active") })
-                    FilterChip(selected = showArchived, onClick = { showArchived = true }, label = { Text("Archived") })
-                }
-                SectionTitle(if (showArchived) "Archived groups" else "Active groups", "${visibleGroups.size} shown")
-            }
-            if (visibleGroups.isEmpty()) item { EmptyState(if (groups.isEmpty()) "No groups yet" else if (showArchived) "No archived groups" else "No matching groups", if (groups.isEmpty()) "Create a group to start sharing expenses." else if (showArchived) "Archived groups appear here." else "Try a different search.") }
-            items(visibleGroups, key = { it.id }) { group ->
-                SurfaceCard(Modifier.clickable { onOpen(group.id) }) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(group.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(5.dp))
-                            Text("${if (group.archived) "Archived · " else ""}${group.currency}  ·  ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(group.createdAt))}", color = Muted)
-                        }
-                        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
-                            Text("↗", modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                style = MaterialTheme.typography.titleMedium)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    items(visibleGroups, key = { it.id }) { group ->
+                        Surface(
+                            onClick = { onOpen(group.id) },
+                            color = MaterialTheme.colorScheme.surface,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(group.name, fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                                    Text("${group.currency} · ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(group.createdAt))}",
+                                        color = Muted, style = MaterialTheme.typography.labelSmall)
+                                }
+                                Text("›", color = MaterialTheme.colorScheme.primary,
+                                    style = MaterialTheme.typography.titleLarge)
+                            }
                         }
                     }
-                }
-            }
-            item {
-                SectionTitle("Data & privacy")
-                SurfaceCard {
-                    Text("Your records stay on your device.", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(6.dp))
-                    Text("Save a full backup before changing phones or reinstalling.",
-                        color = Muted, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedButton(onClick = onExportBackup, modifier = Modifier.fillMaxWidth()) { Text("Export backup") }
-                    OutlinedButton(onClick = onImportBackup, modifier = Modifier.fillMaxWidth()) { Text("Restore from backup") }
                 }
             }
         }
