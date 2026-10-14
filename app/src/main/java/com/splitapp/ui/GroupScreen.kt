@@ -28,6 +28,8 @@ fun GroupScreen(
     var tab by remember(detail.group.id) { mutableIntStateOf(0) }
     var addMember by remember { mutableStateOf(false) }
     var rename by remember { mutableStateOf(false) }
+    var search by remember(detail.group.id) { mutableStateOf("") }
+    var categoryFilter by remember(detail.group.id) { mutableStateOf("All") }
     var deleteTransfer by remember { mutableStateOf<String?>(null) }
     val balances = remember(detail) { SplitMath.balances(detail) }
     val settlements = remember(balances) { SplitMath.settle(balances) }
@@ -63,6 +65,11 @@ fun GroupScreen(
                         Text("${detail.transfers.size} repayments", color = Muted)
                     }
                 }
+                Spacer(Modifier.height(9.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DashboardAction("Add expense", "Record a cost", "＋", { onExpense(null) }, Modifier.weight(1f))
+                    DashboardAction("Repayment", "Settle up", "↗", { onPayment(null, null, null) }, Modifier.weight(1f))
+                }
                 Spacer(Modifier.height(4.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf("Activity", "Balances", "Insights").forEachIndexed { index, label ->
@@ -84,11 +91,25 @@ fun GroupScreen(
                         PersonPicker(detail.members, null, {})
                         Spacer(Modifier.height(6.dp))
                         SectionTitle("All activity")
+                        OutlinedTextField(
+                            value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Search expenses or participants") }, singleLine = true
+                        )
+                        Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            (listOf("All") + detail.expenses.map { it.category }.distinct()).forEach { value ->
+                                FilterChip(selected = categoryFilter == value, onClick = { categoryFilter = value }, label = { Text(value) })
+                            }
+                        }
                     }
-                    val activity: List<Any> = (detail.expenses + detail.transfers).sortedByDescending {
+                    val activity: List<Any> = (detail.expenses.filter { expense ->
+                        (categoryFilter == "All" || expense.category == categoryFilter) &&
+                        (search.isBlank() || expense.title.contains(search, true) || expense.category.contains(search, true) || names[expense.paidBy].orEmpty().contains(search, true) || expense.note.contains(search, true))
+                    } + detail.transfers.filter { transfer ->
+                        categoryFilter == "All" && (search.isBlank() || "repayment".contains(search, true) || names[transfer.fromMember].orEmpty().contains(search, true) || names[transfer.toMember].orEmpty().contains(search, true) || transfer.note.contains(search, true))
+                    }).sortedByDescending {
                         when (it) { is Expense -> it.timestamp; is Transfer -> it.timestamp; else -> 0L }
                     }
-                    if (activity.isEmpty()) item { EmptyState("No transactions yet", "Add an expense such as dinner, tickets or rent.") }
+                    if (activity.isEmpty()) item { EmptyState(if (detail.expenses.isEmpty() && detail.transfers.isEmpty()) "No transactions yet" else "No matching activity", if (detail.expenses.isEmpty() && detail.transfers.isEmpty()) "Add an expense such as dinner, tickets or rent." else "Clear the search or change the category.") }
                     items(activity, key = { when (it) { is Expense -> "e${it.id}"; is Transfer -> "t${it.id}"; else -> "" } }) { entry ->
                         when (entry) {
                             is Expense -> SurfaceCard(Modifier.clickable { onExpense(entry.id) }) {
