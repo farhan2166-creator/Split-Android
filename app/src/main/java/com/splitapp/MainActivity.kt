@@ -27,6 +27,11 @@ import com.splitapp.ui.GroupScreen
 import com.splitapp.ui.LoadingPage
 import com.splitapp.ui.GroupsScreen
 import com.splitapp.ui.PaymentEditor
+import com.splitapp.ui.LedgerScreen
+import com.splitapp.model.LedgerReport
+import com.splitapp.report.PdfLedgerWriter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 
 private val palette = lightColorScheme(
@@ -40,6 +45,7 @@ sealed interface Screen {
     data object Home : Screen
     data class Group(val id: String) : Screen
     data class ExpenseForm(val groupId: String, val expenseId: String? = null) : Screen
+    data class LedgerForm(val groupId: String) : Screen
     data class PaymentForm(val groupId: String, val from: String? = null, val to: String? = null, val amount: Long? = null) : Screen
 }
 
@@ -55,6 +61,27 @@ class MainActivity : ComponentActivity() {
                 val hostState = remember { SnackbarHostState() }
                 val scope = rememberCoroutineScope()
                 var pendingCsv by remember { mutableStateOf("") }
+                var pendingLedger by remember { mutableStateOf<LedgerReport?>(null) }
+                val savePdf = rememberLauncherForActivityResult(
+                    ActivityResultContracts.CreateDocument("application/pdf")
+                ) { uri ->
+                    val snapshot = pendingLedger
+                    pendingLedger = null
+                    if (uri != null && snapshot != null) {
+                        scope.launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    contentResolver.openOutputStream(uri)?.use { stream ->
+                                        PdfLedgerWriter.write(stream, snapshot)
+                                    } ?: error("Unable to open PDF destination")
+                                }
+                                vm.showMessage("PDF ledger saved")
+                            } catch (e: Exception) {
+                                vm.showMessage("PDF export failed: ${e.message ?: "Unknown error"}")
+                            }
+                        }
+                    }
+                }
                 val saveCsv = rememberLauncherForActivityResult(
                     ActivityResultContracts.CreateDocument("text/csv")
                 ) { uri ->
@@ -78,6 +105,7 @@ class MainActivity : ComponentActivity() {
                     screen = when (val current = screen) {
                         is Screen.ExpenseForm -> Screen.Group(current.groupId)
                         is Screen.PaymentForm -> Screen.Group(current.groupId)
+                        is Screen.LedgerForm -> Screen.Group(current.groupId)
                         is Screen.Group -> Screen.Home
                         Screen.Home -> Screen.Home
                     }
@@ -102,6 +130,7 @@ class MainActivity : ComponentActivity() {
                                 onBack = back,
                                 onExpense = { id -> screen = Screen.ExpenseForm(current.id, id) },
                                 onPayment = { from, to, amount -> screen = Screen.PaymentForm(current.id, from, to, amount) },
+                                onLedger = { screen = Screen.LedgerForm(current.id) },
                                 onShare = { text, mime ->
                                     if (mime == "text/csv") {
                                         pendingCsv = text
@@ -115,6 +144,14 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             )
+                        }
+                        is Screen.LedgerForm -> {
+                            val item = detail?.takeIf { it.group.id == current.groupId }
+                            if (item == null) LoadingPage(back)
+                            else LedgerScreen(item, back) { report ->
+                                pendingLedger = report
+                                savePdf.launch("Split-Ledger.pdf")
+                            }
                         }
                         is Screen.ExpenseForm -> {
                             val item = detail?.takeIf { it.group.id == current.groupId }
