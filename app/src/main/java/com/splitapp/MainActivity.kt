@@ -37,6 +37,7 @@ import com.splitapp.report.PdfLedgerWriter
 import com.splitapp.report.LedgerPdfOptions
 import com.splitapp.data.BackupSnapshot
 import com.splitapp.ui.BackupRestoreDialog
+import com.splitapp.ui.SplitTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -60,7 +61,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = palette) {
+            SplitTheme {
                 val vm: SplitViewModel = viewModel()
                 val groups by vm.groups.collectAsState()
                 val detail by vm.detail.collectAsState()
