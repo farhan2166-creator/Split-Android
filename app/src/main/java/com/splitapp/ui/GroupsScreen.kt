@@ -19,6 +19,7 @@ import java.util.Date
 @Composable
 fun GroupsScreen(
     groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) -> Unit,
+    appearance: AppearanceMode, onAppearanceChange: (AppearanceMode) -> Unit,
     onExportBackup: () -> Unit, onImportBackup: () -> Unit
 ) {
     val context = LocalContext.current
@@ -118,7 +119,21 @@ fun GroupsScreen(
                 Text("Version: ${packageInfo.versionName ?: "Unknown"}")
                 Text("Build code: ${packageInfo.longVersionCode}")
                 Text("Package: ${context.packageName}")
-                Text("Offline expense sharing")
+                Text("Offline expense sharing", color = Muted)
+                Spacer(Modifier.height(16.dp))
+                Text("Appearance", style = MaterialTheme.typography.titleMedium)
+                Text("Choose the look that feels comfortable to you.", color = Muted,
+                    style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    AppearanceMode.entries.forEach { option ->
+                        FilterChip(
+                            selected = appearance == option,
+                            onClick = { onAppearanceChange(option) },
+                            label = { Text(option.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                        )
+                    }
+                }
             }
         },
         confirmButton = { TextButton(onClick = { showAbout = false }) { Text("Close") } }
