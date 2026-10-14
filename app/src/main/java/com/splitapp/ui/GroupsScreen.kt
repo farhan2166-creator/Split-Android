@@ -17,7 +17,10 @@ import java.text.DateFormat
 import java.util.Date
 
 @Composable
-fun GroupsScreen(groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) -> Unit) {
+fun GroupsScreen(
+    groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) -> Unit,
+    onExportBackup: () -> Unit, onImportBackup: () -> Unit
+) {
     val context = LocalContext.current
     val packageInfo = remember(context) {
         @Suppress("DEPRECATION")
@@ -41,6 +44,19 @@ fun GroupsScreen(groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) 
                     Text("Organize a trip, home, dinner or event. Record what everyone pays, then settle the difference.", style = MaterialTheme.typography.bodyMedium, color = Muted)
                 }
                 Spacer(Modifier.height(12.dp))
+                SectionTitle("Backup & restore")
+                SurfaceCard {
+                    Text("Move all groups to another phone or keep an offline recovery file.",
+                        style = MaterialTheme.typography.bodyMedium, color = Muted)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = onExportBackup, modifier = Modifier.fillMaxWidth()) {
+                        Text("Export full backup")
+                    }
+                    OutlinedButton(onClick = onImportBackup, modifier = Modifier.fillMaxWidth()) {
+                        Text("Import or restore backup")
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
                 SectionTitle("Quick start")
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     DashboardAction("New group", "Start splitting", "＋", { showCreate = true }, Modifier.weight(1f))
