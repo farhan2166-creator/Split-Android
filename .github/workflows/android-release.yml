@@ -56,12 +56,12 @@ jobs:
       version_name: ${{ steps.package.outputs.version_name }}
     steps:
       - name: Checkout full Git history
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -77,9 +77,10 @@ jobs:
           "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
 
       - name: Set up Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.9'
+          cache-provider: basic
 
       - name: Configure private release signing
         shell: bash
@@ -144,7 +145,7 @@ jobs:
         run: rm -f release-signing.jks signing.properties
 
       - name: Upload signed APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Split-Android-release-${{ github.run_number }}-a${{ github.run_attempt }}
           path: dist/
@@ -160,7 +161,7 @@ jobs:
       contents: write
     steps:
       - name: Download verified release APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: Split-Android-release-${{ github.run_number }}-a${{ github.run_attempt }}
           path: dist
