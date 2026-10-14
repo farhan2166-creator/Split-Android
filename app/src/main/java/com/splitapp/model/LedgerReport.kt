@@ -45,6 +45,12 @@ data class LedgerActivity(
     val isRepayment: Boolean
 )
 
+data class CategoryLedgerSummary(
+    val category: String,
+    val totalMinor: Long,
+    val expenseCount: Int
+)
+
 data class LedgerReport(
     val group: SplitGroup,
     val range: LedgerRange,
@@ -52,7 +58,10 @@ data class LedgerReport(
     val activity: List<LedgerActivity>,
     val relevantExpensesMinor: Long,
     val relevantRepaymentsMinor: Long,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val categoryTotals: List<CategoryLedgerSummary> = emptyList(),
+    val settlementSuggestions: List<Settlement> = emptyList(),
+    val wholeGroup: Boolean = false
 )
 
 /**
@@ -82,6 +91,8 @@ object LedgerReportBuilder {
         val allocations = detail.allocations.groupBy { it.expenseId }
         val postings = mutableListOf<Posting>()
         val activity = mutableListOf<LedgerActivity>()
+        val categoryAmounts = mutableMapOf<String, Long>()
+        val categoryCounts = mutableMapOf<String, Int>()
 
         detail.expenses.forEach { expense ->
             val paid = funding[expense.id]
@@ -90,6 +101,8 @@ object LedgerReportBuilder {
             val relevant = paid.any { it.memberId in selectedMemberIds } ||
                 consumed.any { it.memberId in selectedMemberIds }
             if (relevant && range.includes(expense.timestamp)) {
+                categoryAmounts[expense.category] = Math.addExact(categoryAmounts[expense.category] ?: 0L, expense.amountMinor)
+                categoryCounts[expense.category] = (categoryCounts[expense.category] ?: 0) + 1
                 val payerNames = paid.joinToString(", ") { names[it.memberId].orEmpty() }
                 activity += LedgerActivity(
                     expense.timestamp, expense.title,
@@ -158,8 +171,18 @@ object LedgerReportBuilder {
         }
         val relevantActivity = activity.sortedWith(compareBy<LedgerActivity> { it.timestamp }
             .thenBy { it.isRepayment }.thenBy { it.title })
+        val wholeGroup = selectedMemberIds.size == detail.members.size
+        val suggested = if (wholeGroup) {
+            SplitMath.settle(sections.associate { it.member.id to it.closingMinor })
+        } else emptyList()
+        val categories = categoryAmounts.entries.map {
+            CategoryLedgerSummary(it.key, it.value, categoryCounts.getValue(it.key))
+        }.sortedWith(compareByDescending<CategoryLedgerSummary> { it.totalMinor }.thenBy { it.category })
         return LedgerReport(detail.group, range, sections, relevantActivity,
             relevantActivity.filterNot { it.isRepayment }.fold(0L) { sum, a -> Math.addExact(sum, a.amountMinor) },
-            relevantActivity.filter { it.isRepayment }.fold(0L) { sum, a -> Math.addExact(sum, a.amountMinor) })
+            relevantActivity.filter { it.isRepayment }.fold(0L) { sum, a -> Math.addExact(sum, a.amountMinor) },
+            categoryTotals = categories,
+            settlementSuggestions = suggested,
+            wholeGroup = wholeGroup)
     }
 }

@@ -58,6 +58,34 @@ class LedgerReportTest {
         assertEquals(setOf("a", "b"), report.sections.map { it.member.id }.toSet())
     }
 
+    @Test fun categoryBreakdownMatchesRelevantExpenseTotals() {
+        val report = LedgerReportBuilder.build(detail(), setOf("a", "c"))
+        assertEquals(listOf("Stay", "Food"), report.categoryTotals.map { it.category })
+        assertEquals(listOf(12000L, 3000L), report.categoryTotals.map { it.totalMinor })
+        assertEquals(report.relevantExpensesMinor, report.categoryTotals.sumOf { it.totalMinor })
+        assertTrue(report.settlementSuggestions.isEmpty())
+        assertFalse(report.wholeGroup)
+    }
+
+    @Test fun fullGroupSettlementSuggestionsBalanceClosingPositions() {
+        val report = LedgerReportBuilder.build(detail(), members.map { it.id }.toSet())
+        assertTrue(report.wholeGroup)
+        val balances = report.sections.associate { it.member.id to it.closingMinor }.toMutableMap()
+        report.settlementSuggestions.forEach { transfer ->
+            balances[transfer.fromMember] = balances.getValue(transfer.fromMember) + transfer.amountMinor
+            balances[transfer.toMember] = balances.getValue(transfer.toMember) - transfer.amountMinor
+        }
+        assertTrue(balances.values.all { it == 0L })
+    }
+
+    @Test fun categoryTotalsRespectPeriodAndDoNotDoubleCountMultiPayerExpense() {
+        val report = LedgerReportBuilder.build(detail(), setOf("a", "b"), LedgerRange(0, 2000))
+        assertEquals(1, report.categoryTotals.size)
+        assertEquals("Stay", report.categoryTotals.single().category)
+        assertEquals(1, report.categoryTotals.single().expenseCount)
+        assertEquals(12000L, report.categoryTotals.single().totalMinor)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun unknownParticipantIsRejected() {
         LedgerReportBuilder.build(detail(), setOf("missing"))

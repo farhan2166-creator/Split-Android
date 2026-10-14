@@ -11,6 +11,12 @@ import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
+/** Controls report length without changing any financial calculations. */
+data class LedgerPdfOptions(
+    val includeMemberLedgers: Boolean = true,
+    val includeActivityAppendix: Boolean = true
+)
+
 /** Android-native A4 PDF ledger. No internet, photo, or storage permission required. */
 object PdfLedgerWriter {
     private const val WIDTH = 595
@@ -30,7 +36,7 @@ object PdfLedgerWriter {
         Money.format(amount)
     private fun safe(value: String): String = value.replace("\n", " ").replace("\r", " ")
 
-    fun write(output: OutputStream, report: LedgerReport) {
+    fun write(output: OutputStream, report: LedgerReport, options: LedgerPdfOptions = LedgerPdfOptions()) {
         val pdf = PdfDocument()
         try {
             val printer = Printer(pdf, report)
@@ -46,6 +52,16 @@ object PdfLedgerWriter {
             printer.keyValue("Relevant repayments", report.relevantRepaymentsMinor)
             printer.text("Transactions are counted once when any selected member participates.", 9f)
             printer.space(9f)
+            printer.heading("Spending by category")
+            if (report.categoryTotals.isEmpty()) {
+                printer.text("No expenses for this selection and period.", 10f)
+            } else {
+                val largest = report.categoryTotals.first().totalMinor
+                report.categoryTotals.forEach { category ->
+                    printer.categoryRow(category, largest)
+                }
+            }
+            printer.space(8f)
             printer.heading("Balances for selected participants")
             report.sections.forEach { section ->
                 printer.text(section.member.name, 11f, bold = true)
@@ -55,7 +71,26 @@ object PdfLedgerWriter {
             }
             printer.text("Positive balance: money to receive. Negative balance: money owed.", 9f)
             printer.text("Closing = opening + paid + repayments sent - shares - repayments received.", 9f)
-            report.sections.forEach { section ->
+            if (report.wholeGroup) {
+                printer.space(10f)
+                printer.heading("Suggested repayments at period end")
+                if (report.settlementSuggestions.isEmpty()) {
+                    printer.text("No outstanding balances between participants.", 10f)
+                } else {
+                    val names = report.sections.associate { it.member.id to it.member.name }
+                    report.settlementSuggestions.forEach { transfer ->
+                        printer.settlementRow(
+                            names.getValue(transfer.fromMember),
+                            names.getValue(transfer.toMember),
+                            transfer.amountMinor
+                        )
+                    }
+                }
+                printer.text("Suggestions only; no payment is recorded by exporting.", 9f)
+            } else {
+                printer.text("Settlement suggestions require a full-group report.", 9f)
+            }
+            if (options.includeMemberLedgers) report.sections.forEach { section ->
                 printer.start("Member ledger")
                 printer.heading(section.member.name)
                 printer.text("${report.group.name} | ${report.range.title}")
@@ -75,6 +110,7 @@ object PdfLedgerWriter {
                         line.inMinor, line.outMinor, line.balanceMinor)
                 }
             }
+            if (options.includeActivityAppendix) {
             printer.start("Group activity")
             printer.heading("Transaction activity")
             printer.text("Transactions involving selected participants | ${report.range.title}")
@@ -86,6 +122,7 @@ object PdfLedgerWriter {
                     printer.activityRow(date(item.timestamp), item.title,
                         item.description, item.amountMinor, item.isRepayment)
                 }
+            }
             }
             printer.finish()
             pdf.writeTo(output)
@@ -150,6 +187,33 @@ object PdfLedgerWriter {
             label("${report.group.currency} ${money(value)}", RIGHT, y + 14f, 10f,
                 if (value < 0) 0xFFB34F3D.toInt() else GREEN, true, true)
             y += 23f
+        }
+
+        fun categoryRow(category: CategoryLedgerSummary, largest: Long) {
+            ensure(44f)
+            val c = canvas ?: return
+            label(clip(category.category + " (" + category.expenseCount + ")", 335f, 10f),
+                LEFT, y + 11f, 10f, Color.DKGRAY)
+            label(report.group.currency + " " + money(category.totalMinor),
+                RIGHT, y + 11f, 10f, GREEN, true, true)
+            paint.color = 0xFFE5EFEA.toInt()
+            c.drawRoundRect(LEFT, y + 21f, RIGHT, y + 28f, 3f, 3f, paint)
+            if (largest > 0L) {
+                paint.color = GREEN
+                val fraction = category.totalMinor.toDouble() / largest.toDouble()
+                val width = ((RIGHT - LEFT) * fraction).toFloat().coerceIn(0f, RIGHT - LEFT)
+                c.drawRoundRect(LEFT, y + 21f, LEFT + width, y + 28f, 3f, 3f, paint)
+            }
+            y += 44f
+        }
+
+        fun settlementRow(from: String, to: String, amount: Long) {
+            ensure(27f)
+            label(clip(safe(from + " pays " + to), 360f, 10f),
+                LEFT, y + 15f, 10f, Color.DKGRAY)
+            label(report.group.currency + " " + money(amount),
+                RIGHT, y + 15f, 10f, GREEN, true, true)
+            y += 27f
         }
 
         fun tableHeader() {
