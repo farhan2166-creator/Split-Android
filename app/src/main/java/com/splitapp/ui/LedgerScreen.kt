@@ -116,18 +116,13 @@ fun LedgerScreen(
         }
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            HeroPanel(
-                kicker = "YOUR RECORDS, YOUR WAY",
-                title = "Beautiful, precise ledgers.",
-                supporting = "Choose participants, dates and details. Save a private PDF wherever you prefer."
-            )
-            SurfaceCard {
+            CompactPanel {
                 Text("Choose report coverage", style = MaterialTheme.typography.titleMedium)
                 Text("Group ledger, one person or multiple selected people.", style = MaterialTheme.typography.bodySmall, color = Muted)
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(6.dp))
                 ScopeMode.entries.forEach { choice ->
                     Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         RadioButton(selected = scope == choice, onClick = { scope = choice })
@@ -159,7 +154,7 @@ fun LedgerScreen(
                     }
                 }
             }
-            SurfaceCard {
+            CompactPanel {
                 Text("Date range", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
                 DateMode.entries.forEach { option ->
@@ -169,7 +164,7 @@ fun LedgerScreen(
                     }
                 }
                 if (dateMode == DateMode.CUSTOM) {
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(6.dp))
                     OutlinedButton(onClick = { pickDate(startDate) { startDate = it } }, modifier = Modifier.fillMaxWidth()) {
                         Text("From: ${DateFormat.getDateInstance().format(Date(startDate))}")
                     }
@@ -178,14 +173,14 @@ fun LedgerScreen(
                     }
                 }
             }
-            SurfaceCard {
+            CompactPanel {
                 Text("Included in the PDF", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
                 Text("Opening balance, expense payments, each person's allocated shares, repayments, running balances and closing balance. Includes a group activity appendix.", color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Text("The report is calculated from existing records. Saving a PDF does not change any expenses or balances.", style = MaterialTheme.typography.bodySmall, color = Muted)
             }
-            SurfaceCard {
+            CompactPanel {
                 Text("PDF detail level", style = MaterialTheme.typography.titleMedium)
                 Text("The summary, category spending and closing balances are always included.", style = MaterialTheme.typography.bodySmall, color = Muted)
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
