@@ -12,6 +12,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import java.text.DateFormat
+import java.util.Calendar
+import java.util.Date
 import com.splitapp.data.SplitViewModel
 import com.splitapp.model.*
 import java.util.UUID
@@ -25,6 +29,8 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
     var title by remember(expenseId) { mutableStateOf(existing?.title.orEmpty()) }
     var amountText by remember(expenseId) { mutableStateOf(existing?.let { Money.input(it.amountMinor) }.orEmpty()) }
     var note by remember(expenseId) { mutableStateOf(existing?.note.orEmpty()) }
+    var expenseDate by remember(expenseId) { mutableLongStateOf(existing?.timestamp ?: System.currentTimeMillis()) }
+    val context = LocalContext.current
     var category by remember(expenseId) { mutableStateOf(existing?.category ?: "Food") }
     var payer by remember(expenseId) { mutableStateOf(existing?.paidBy ?: detail.members.first().id) }
     var multiplePayers by remember(expenseId) { mutableStateOf(detail.contributions.count { it.expenseId == expenseId } > 1) }
@@ -89,7 +95,7 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                             error = null
                             val id = existing?.id ?: UUID.randomUUID().toString()
                             vm.saveExpense(
-                                Expense(id, detail.group.id, title.trim(), category, amount, payer, note.trim(), existing?.timestamp ?: System.currentTimeMillis()),
+                                Expense(id, detail.group.id, title.trim(), category, amount, payer, note.trim(), expenseDate),
                                 allocations.map { Allocation(id, it.key, it.value) }, onBack,
                                 funding.map { it.copy(expenseId = id) }
                             )
@@ -114,6 +120,21 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                     amountText, { amountText = it }, label = { Text("Amount · ${detail.group.currency}") },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = {
+                    val calendar = Calendar.getInstance().apply { timeInMillis = expenseDate }
+                    android.app.DatePickerDialog(context, { _, year, month, day ->
+                        val updated = Calendar.getInstance().apply {
+                            timeInMillis = expenseDate
+                            set(Calendar.YEAR, year)
+                            set(Calendar.MONTH, month)
+                            set(Calendar.DAY_OF_MONTH, day)
+                        }
+                        expenseDate = updated.timeInMillis
+                    }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Date: ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(expenseDate))} · Change")
+                }
                 Spacer(Modifier.height(12.dp))
                 Text("Category", style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(5.dp))
