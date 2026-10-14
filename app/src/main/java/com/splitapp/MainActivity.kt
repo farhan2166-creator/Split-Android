@@ -237,6 +237,7 @@ class MainActivity : ComponentActivity() {
                             backup = snapshot,
                             onDismiss = { restoreCandidate = null },
                             onRestore = { mode ->
+                                restoreCandidate = null
                                 vm.restoreBackup(snapshot, mode) { result ->
                                     restoreCandidate = null
                                     screen = Screen.Home
