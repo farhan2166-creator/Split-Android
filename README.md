@@ -23,7 +23,7 @@ Open this repository in Android Studio (JDK 17, Android SDK 35). It uses Android
 gradle testDebugUnitTest assembleDebug
 ```
 
-In GitHub open **Actions → Android CI and APK**. After a successful workflow run, download the artifact **split-debug-apk** and install the APK. The workflow automatically builds on pushes to `main` and supports manual runs. **Debug APKs are not Play Store release-signed.**
+In GitHub open **Actions → Android Debug APK** to download a debug artifact from pushes to main, pull requests or manual runs. A separate **Android Release APK** workflow builds a production-key-signed release when dispatched manually. Both workflows use a shared commit-based build numbering sequence.
 
 ## Data & feature boundaries
 
@@ -48,3 +48,14 @@ The installed Android app is named **Split** and has a distinct application ID, 
 Version codes reserve 10,000 build numbers per patch; before exceeding that limit, increment the patch version and reset the CI counter strategy. App versions are calculated deterministically so parallel Gradle tasks cannot corrupt a version file. Do not change the application ID again if you want future APKs to upgrade the same installed app.
 
 **Existing installs:** previous experimental builds with `com.splitapp` are a separate application. They will not upgrade into `com.mythos.split`, nor automatically transfer their private SQLite data. Keep the old installation if it contains records you need. Debug APKs are test-signed, not production releases.
+
+## Debug and signed release APKs
+
+- **Debug APK:** Actions → Android Debug APK → successful run → artifact `Split-Android-debug-...`. On main pushes, pull requests or manual dispatch. Runs unit tests, verifies debug signature, and archives a version-labelled APK and checksum.
+- **Signed release APK:** Configure four GitHub Actions repository secrets: `ANDROID_KEYSTORE_BASE64` (production .jks file encoded as base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. Then Actions → Android Release APK → Run workflow on main. Missing signing secrets cause an explicit failure—an unsigned APK is never published as a release.
+- **Optional GitHub Release:** In the manual run select `publish_release` to upload the signed APK and SHA256 checksum as downloadable Release assets. Publishing is opt-in; the Actions artifact is uploaded whether publishing is chosen or not.
+- **Signing compatibility:** Both variants have application ID `com.mythos.split`, but APKs signed with different keys cannot update one another. Do not uninstall an app containing local expenses just to change signatures; uninstalling deletes its private data. Maintain the same private release keystore for all production updates.
+- **Versions:** Both workflows calculate `splitCiRunNumber` as 1000 plus the full Git commit count. This avoids conflicting build codes between two workflows, whose GitHub run counters are independent. Update `version.properties` for MAJOR/MINOR/PATCH. Increment the version or revise the scheme before reaching 8999 commits.
+- **Local signing:** Copy `signing.properties.example` to ignored `signing.properties`, and store the keystore outside version control. Debug builds never read signing secrets.
+
+Never commit signing passwords, .jks files, or signing.properties.
