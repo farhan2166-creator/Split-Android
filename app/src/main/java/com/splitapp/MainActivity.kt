@@ -28,10 +28,10 @@ import com.splitapp.ui.PaymentEditor
 import kotlinx.coroutines.launch
 
 private val palette = lightColorScheme(
-    primary = Color(0xFF08745D), onPrimary = Color.White,
-    secondary = Color(0xFF41685E), surface = Color.White,
-    background = Color(0xFFF4F7F5), onBackground = Color(0xFF19342E),
-    onSurface = Color(0xFF19342E), surfaceVariant = Color(0xFFE8F0EC)
+    primary = Color(0xFF008577), onPrimary = Color.White,
+    secondary = Color(0xFFD97706), surface = Color.White,
+    background = Color(0xFFF7F5F1), onBackground = Color(0xFF173D35),
+    onSurface = Color(0xFF173D35), surfaceVariant = Color(0xFFF1ECE3)
 )
 
 sealed interface Screen {
