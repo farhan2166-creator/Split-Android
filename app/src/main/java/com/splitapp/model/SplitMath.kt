@@ -48,9 +48,16 @@ object SplitMath {
     fun balances(detail: GroupDetail): Map<String, Long> {
         val balance = detail.members.associate { it.id to 0L }.toMutableMap()
         val expenses = detail.expenses.associateBy { it.id }
+        val contributions = detail.contributions.groupBy { it.expenseId }
         detail.expenses.forEach { expense ->
             require(expense.amountMinor > 0 && balance.containsKey(expense.paidBy))
-            balance[expense.paidBy] = Math.addExact(balance.getValue(expense.paidBy), expense.amountMinor)
+            val funded = contributions[expense.id] ?: listOf(Contribution(expense.id, expense.paidBy, expense.amountMinor))
+            require(funded.isNotEmpty() && funded.map { it.memberId }.distinct().size == funded.size)
+            require(funded.all { it.amountMinor > 0 && balance.containsKey(it.memberId) })
+            require(funded.fold(0L) { sum, part -> Math.addExact(sum, part.amountMinor) } == expense.amountMinor)
+            funded.forEach { part ->
+                balance[part.memberId] = Math.addExact(balance.getValue(part.memberId), part.amountMinor)
+            }
         }
         val sums = mutableMapOf<String, Long>()
         detail.allocations.forEach { part ->
