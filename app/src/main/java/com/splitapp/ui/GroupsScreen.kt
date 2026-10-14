@@ -30,7 +30,7 @@ fun GroupsScreen(
     var showCreate by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
     var showArchived by remember { mutableStateOf(false) }
-    val visibleGroups = remember(groups, filter) { groups.filter { it.archived == showArchived && (it.name.contains(filter.trim(), ignoreCase = true) || it.currency.contains(filter.trim(), ignoreCase = true)) } }
+    val visibleGroups = remember(groups, filter, showArchived) { groups.filter { it.archived == showArchived && (it.name.contains(filter.trim(), ignoreCase = true) || it.currency.contains(filter.trim(), ignoreCase = true)) } }
     Scaffold(
         topBar = { AppHeader("Split", "Fair expenses, easy settlements") { TextButton(onClick = { showAbout = true }) { Text("About") } } },
         floatingActionButton = { ExtendedFloatingActionButton(onClick = { showCreate = true }) { Text("+ New group") } }
@@ -38,34 +38,39 @@ fun GroupsScreen(
         LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp), contentPadding = PaddingValues(bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Spacer(Modifier.height(10.dp))
-                SurfaceCard {
-                    Text("Share costs, not confusion", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Organize a trip, home, dinner or event. Record what everyone pays, then settle the difference.", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                HeroPanel(
+                    kicker = "YOUR SHARED SPACE",
+                    title = "Share moments. Not money worries.",
+                    supporting = "Organise everyday expenses and settle with confidence."
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                        Column {
+                            Text("${groups.count { !it.archived }}", color = androidx.compose.ui.graphics.Color.White,
+                                style = MaterialTheme.typography.headlineSmall)
+                            Text("Active groups", color = androidx.compose.ui.graphics.Color(0xFFCFEBE3),
+                                style = MaterialTheme.typography.labelMedium)
+                        }
+                        Column {
+                            Text("${groups.count { it.archived }}", color = androidx.compose.ui.graphics.Color.White,
+                                style = MaterialTheme.typography.headlineSmall)
+                            Text("Archived", color = androidx.compose.ui.graphics.Color(0xFFCFEBE3),
+                                style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
                 }
                 Spacer(Modifier.height(12.dp))
-                SectionTitle("Backup & restore")
-                SurfaceCard {
-                    Text("Move all groups to another phone or keep an offline recovery file.",
-                        style = MaterialTheme.typography.bodyMedium, color = Muted)
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = onExportBackup, modifier = Modifier.fillMaxWidth()) {
-                        Text("Export full backup")
-                    }
-                    OutlinedButton(onClick = onImportBackup, modifier = Modifier.fillMaxWidth()) {
-                        Text("Import or restore backup")
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-                SectionTitle("Quick start")
+                SectionTitle("Quick actions")
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     DashboardAction("New group", "Start splitting", "＋", { showCreate = true }, Modifier.weight(1f))
-                    DashboardAction("Browse all", "${groups.size} saved", "▦", { filter = "" }, Modifier.weight(1f))
+                    DashboardAction("Back up", "Keep data safe", "↥", onExportBackup, Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(10.dp))
+                SectionTitle("Your groups")
                 OutlinedTextField(
                     value = filter, onValueChange = { filter = it },
-                    label = { Text("Find a group") }, singleLine = true,
+                    label = { Text("Search your groups") }, singleLine = true,
+                    leadingIcon = { Text("⌕") },
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -83,8 +88,24 @@ fun GroupsScreen(
                             Spacer(Modifier.height(5.dp))
                             Text("${if (group.archived) "Archived · " else ""}${group.currency}  ·  ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(group.createdAt))}", color = Muted)
                         }
-                        Text("→", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
+                            Text("↗", modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                style = MaterialTheme.typography.titleMedium)
+                        }
                     }
+                }
+            }
+            item {
+                SectionTitle("Data & privacy")
+                SurfaceCard {
+                    Text("Your records stay on your device.", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Save a full backup before changing phones or reinstalling.",
+                        color = Muted, style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(onClick = onExportBackup, modifier = Modifier.fillMaxWidth()) { Text("Export backup") }
+                    OutlinedButton(onClick = onImportBackup, modifier = Modifier.fillMaxWidth()) { Text("Restore from backup") }
                 }
             }
         }
