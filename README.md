@@ -63,3 +63,16 @@ Never commit signing passwords, .jks files, or signing.properties.
 ### Troubleshooting APK rebuilding
 
 A successful **Android Debug APK** workflow produces a downloadable GitHub Actions *artifact*; GitHub wraps the APK and checksum in a ZIP for download, so extract it to install the APK. If you want a new debug build of the same code, choose **Actions → Android Debug APK → Run workflow**. Every new run includes a newer build number in the APK version. A fresh push to `main` also triggers the debug build, including README-only changes. The signed release workflow builds automatically only when all four signing secrets have been configured. If the installed app has a different signing certificate, Android will block an in-place update even when its version is newer; do not uninstall without preserving your private expense data first.
+
+## PDF ledgers
+
+Open a group and select **Generate PDF Ledger** (also available in **Insights → Records & sharing**).
+
+- **Group ledger:** all participants, with individual sections and an activity appendix.
+- **Single-member ledger:** one person's credited payments, allocated shares, repayments, running balance and net position.
+- **Multi-member ledger:** any selected participants, with independent opening and closing balances; common transactions are counted once in the activity summary.
+- **Periods:** All time, this month, last month, or a custom inclusive start/end date.
+- **Accounting:** Each member's opening balance includes all activity before the start date. Their closing balance includes only relevant activity through the end date. Positive means they should receive money; negative means they owe.
+- **PDF:** Offline A4 pages with a summary, chronological member ledger tables, balance columns, and the related transaction appendix. Uses Android's built-in PDF renderer and Save As document picker; no photo capture, permissions or external PDF service.
+
+The ledger is a read-only report. Exporting does not alter any expense, settlement or group balance. Transactions are grouped within a single group's currency; there is no cross-currency conversion.
