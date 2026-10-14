@@ -22,7 +22,7 @@ fun GroupsScreen(groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) 
     val visibleGroups = remember(groups, filter) { groups.filter { it.name.contains(filter.trim(), ignoreCase = true) || it.currency.contains(filter.trim(), ignoreCase = true) } }
     Scaffold(
         topBar = { AppHeader("Split", "Fair expenses, easy settlements") },
-        floatingActionButton = { ExtendedFloatingActionButton(onClick = { showCreate = true }, text = { Text("+ New group") }) }
+        floatingActionButton = { ExtendedFloatingActionButton(onClick = { showCreate = true }) { Text("+ New group") } }
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp), contentPadding = PaddingValues(bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
