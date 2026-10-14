@@ -102,3 +102,9 @@ Split uses an accessible ocean-and-sage visual system with warm amber accents, s
 - Core balance calculations, SQLite records, import/export formats and signing configuration are unchanged.
 
 The interface intentionally avoids neon colors and excessive animation so it remains calm and readable during longer use.
+
+## Direct APK downloads (without extracting a ZIP)
+
+After each successful `main` debug build, GitHub Actions also publishes an **individual `.apk` file** and its SHA-256 checksum as a **GitHub pre-release**. Open [Split-Android Releases](https://github.com/farhan2166-creator/Split-Android/releases), choose the newest `Split Android Debug APK` entry, and tap the `.apk` asset under **Assets**. It downloads directly, without having to extract an Actions artifact ZIP.
+
+GitHub Actions' **Artifacts** section itself always wraps uploaded files in a ZIP; the pre-release is the direct APK download location. Each successful debug run links the APK in the `Publish direct debug APK` job summary. Debug builds are test-signed and cannot automatically replace a production-key-signed installation; keep a backup before changing signing identities.
