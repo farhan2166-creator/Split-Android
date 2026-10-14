@@ -58,6 +58,104 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
         return GroupDetail(group, members, expenses, allocations, transfers, contributions)
     }
 
+    /** Read all tables under one SQLite snapshot, including archived groups and multi-payer rows. */
+    fun backupSnapshot(): BackupSnapshot {
+        val db = readableDatabase
+        db.beginTransactionNonExclusive()
+        return try {
+            val result = BackupSnapshot(groups().map { g ->
+                group(g.id) ?: error("Missing group during backup")
+            })
+            BackupCodec.validate(result)
+            db.setTransactionSuccessful()
+            result
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    /**
+     * Restore is all-or-nothing. Every record is validated before the transaction.
+     * MERGE_MISSING does not overwrite groups with the same id. Incoming identifiers
+     * must not conflict with existing records, even if they occur in another group.
+     */
+    fun restoreBackup(snapshot: BackupSnapshot, mode: RestoreMode): RestoreResult {
+        BackupCodec.validate(snapshot)
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val existing = db.rawQuery("SELECT id FROM groups", null).use { c ->
+                buildSet { while (c.moveToNext()) add(c.getString(0)) }
+            }
+            val incoming = when (mode) {
+                RestoreMode.MERGE_MISSING -> snapshot.groups.filter { it.group.id !in existing }
+                RestoreMode.REPLACE_ALL -> snapshot.groups
+            }
+            if (mode == RestoreMode.REPLACE_ALL) {
+                db.delete("groups", null, null)
+            } else {
+                // Validate identifier collisions *before* inserting any rows.
+                fun existingIds(table: String): Set<String> =
+                    db.rawQuery("SELECT id FROM $table", null).use { c ->
+                        buildSet { while (c.moveToNext()) add(c.getString(0)) }
+                    }
+                val members = existingIds("members")
+                val expenses = existingIds("expenses")
+                val transfers = existingIds("transfers")
+                require(incoming.none { g ->
+                    g.members.any { it.id in members } ||
+                    g.expenses.any { it.id in expenses } ||
+                    g.transfers.any { it.id in transfers }
+                }) { "Backup record IDs conflict with existing groups; no data imported" }
+            }
+            incoming.forEach { detail ->
+                val g = detail.group
+                db.insertOrThrow("groups", null, cv(
+                    "id" to g.id, "name" to g.name, "currency" to g.currency,
+                    "created_at" to g.createdAt, "archived" to if (g.archived) 1 else 0
+                ))
+                detail.members.forEach { m ->
+                    db.insertOrThrow("members", null, cv(
+                        "id" to m.id, "group_id" to m.groupId, "name" to m.name
+                    ))
+                }
+                detail.expenses.forEach { e ->
+                    db.insertOrThrow("expenses", null, cv(
+                        "id" to e.id, "group_id" to e.groupId,
+                        "title" to e.title, "category" to e.category,
+                        "amount_minor" to e.amountMinor, "paid_by" to e.paidBy,
+                        "note" to e.note, "timestamp" to e.timestamp
+                    ))
+                }
+                detail.allocations.forEach { a ->
+                    db.insertOrThrow("allocations", null, cv(
+                        "expense_id" to a.expenseId, "member_id" to a.memberId,
+                        "amount_minor" to a.amountMinor
+                    ))
+                }
+                detail.contributions.forEach { c ->
+                    db.insertOrThrow("contributions", null, cv(
+                        "expense_id" to c.expenseId, "member_id" to c.memberId,
+                        "amount_minor" to c.amountMinor
+                    ))
+                }
+                detail.transfers.forEach { t ->
+                    db.insertOrThrow("transfers", null, cv(
+                        "id" to t.id, "group_id" to t.groupId,
+                        "from_member" to t.fromMember, "to_member" to t.toMember,
+                        "amount_minor" to t.amountMinor, "note" to t.note,
+                        "timestamp" to t.timestamp
+                    ))
+                }
+            }
+            val result = RestoreResult(incoming.size, snapshot.groups.size - incoming.size)
+            db.setTransactionSuccessful()
+            return result
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     fun createGroup(name: String, currency: String, initialMember: String): String {
         require(name.isNotBlank() && initialMember.isNotBlank())
         require(currency.matches(Regex("[A-Z]{3}")))
