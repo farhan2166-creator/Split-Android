@@ -119,6 +119,11 @@ fun LedgerScreen(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            HeroPanel(
+                kicker = "YOUR RECORDS, YOUR WAY",
+                title = "Beautiful, precise ledgers.",
+                supporting = "Choose participants, dates and details. Save a private PDF wherever you prefer."
+            )
             SurfaceCard {
                 Text("Choose report coverage", style = MaterialTheme.typography.titleMedium)
                 Text("Group ledger, one person or multiple selected people.", style = MaterialTheme.typography.bodySmall, color = Muted)

@@ -111,8 +111,14 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(15.dp)
         ) {
+            HeroPanel(
+                kicker = "EASY EXPENSES",
+                title = if (existing == null) "Add a shared expense" else "Fine-tune this expense",
+                supporting = "Record who paid, choose the people involved, and preview a fair split."
+            )
             SurfaceCard {
-                Text("EXPENSE DETAILS", color = Muted, style = MaterialTheme.typography.labelMedium)
+                Text("01  ·  EXPENSE DETAILS", color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(title, { title = it }, label = { Text("What was this for?") }, placeholder = { Text("Dinner, hotel, groceries...") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(10.dp))
@@ -142,7 +148,7 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                     categories.forEach { item -> FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item) }) }
                 }
                 Spacer(Modifier.height(12.dp))
-                Text("Paid by", style = MaterialTheme.typography.labelLarge)
+                Text("Who covered the bill?", style = MaterialTheme.typography.labelLarge)
                 if (!multiplePayers) PersonPicker(detail.members, payer) { payer = it }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Checkbox(checked = multiplePayers, onCheckedChange = { enabled ->
@@ -167,7 +173,7 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                 OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 3)
             }
             SurfaceCard {
-                Text("SPLIT BETWEEN", color = Muted, style = MaterialTheme.typography.labelMedium)
+                Text("02  ·  SPLIT BETWEEN", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(6.dp))
                 Text("Choose who benefited. The person who paid can be included or excluded.", color = Muted, style = MaterialTheme.typography.bodySmall)
                 detail.members.forEach { member ->
