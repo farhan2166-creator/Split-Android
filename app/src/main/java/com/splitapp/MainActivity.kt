@@ -23,6 +23,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.splitapp.data.SplitViewModel
 import com.splitapp.model.GroupDetail
@@ -69,6 +72,23 @@ class MainActivity : ComponentActivity() {
                 } ?: AppearanceMode.SYSTEM)
             }
             SplitTheme(appearance) {
+                val hostView = LocalView.current
+                val backgroundColor = MaterialTheme.colorScheme.background.toArgb()
+                val isDarkAppearance = when (appearance) {
+                    AppearanceMode.DARK -> true
+                    AppearanceMode.LIGHT -> false
+                    AppearanceMode.SYSTEM ->
+                        (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                            android.content.res.Configuration.UI_MODE_NIGHT_YES
+                }
+                SideEffect {
+                    window.statusBarColor = backgroundColor
+                    window.navigationBarColor = backgroundColor
+                    WindowCompat.getInsetsController(window, hostView).apply {
+                        isAppearanceLightStatusBars = !isDarkAppearance
+                        isAppearanceLightNavigationBars = !isDarkAppearance
+                    }
+                }
                 val vm: SplitViewModel = viewModel()
                 val groups by vm.groups.collectAsState()
                 val detail by vm.detail.collectAsState()
