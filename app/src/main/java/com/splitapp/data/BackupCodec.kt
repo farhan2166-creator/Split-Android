@@ -53,7 +53,8 @@ object BackupCodec {
                         d.transfers.forEach { t -> put(JSONObject().put("id", t.id)
                             .put("groupId", t.groupId).put("fromMember", t.fromMember)
                             .put("toMember", t.toMember).put("amountMinor", t.amountMinor.toString())
-                            .put("note", t.note).put("timestamp", t.timestamp.toString())) }
+                             .put("note", t.note).put("timestamp", t.timestamp.toString())
+                            .put("kind", t.kind.name)) }
                     }))
             }
         }).toString()
@@ -135,7 +136,9 @@ object BackupCodec {
                         val t = transferArray.getJSONObject(j)
                         add(Transfer(t.getString("id"), t.getString("groupId"),
                             t.getString("fromMember"), t.getString("toMember"),
-                            t.longString("amountMinor"), t.getString("note"), t.longString("timestamp")))
+                            t.longString("amountMinor"), t.getString("note"), t.longString("timestamp"),
+                            if (t.has("kind")) TransferKind.valueOf(t.getString("kind"))
+                            else TransferKind.REPAYMENT))
                     }
                 }
                 add(GroupDetail(group, members, expenses, allocations, transfers, contributions))

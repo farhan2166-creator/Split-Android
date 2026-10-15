@@ -27,6 +27,9 @@ data class Allocation(val expenseId: String, val memberId: String, val amountMin
 /** An expense can be funded by more than one participant. */
 data class Contribution(val expenseId: String, val memberId: String, val amountMinor: Long)
 
+/** Advances and repayments both move real money between travelers, not trip spending. */
+enum class TransferKind { ADVANCE, REPAYMENT }
+
 data class Transfer(
     val id: String,
     val groupId: String,
@@ -34,7 +37,8 @@ data class Transfer(
     val toMember: String,
     val amountMinor: Long,
     val note: String,
-    val timestamp: Long
+    val timestamp: Long,
+    val kind: TransferKind = TransferKind.REPAYMENT
 )
 
 data class GroupDetail(
