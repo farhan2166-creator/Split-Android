@@ -52,8 +52,8 @@ Version codes reserve 10,000 build numbers per patch; before exceeding that limi
 ## Debug and signed release APKs
 
 - **Debug APK:** Actions → Android Debug APK → successful run → artifact `Split-Android-debug-...`. On main pushes, pull requests or manual dispatch. Runs unit tests, verifies debug signature, and archives a version-labelled APK and checksum.
-- **Signed release APK:** Configure four GitHub Actions repository secrets: `ANDROID_KEYSTORE_BASE64` (production .jks file encoded as base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. When all four secrets are configured, a signed release APK builds automatically on pushes to `main`, and also on manual runs. Without those secrets, automatic release runs skip the signing job and explain why; manual release runs fail clearly. An unsigned APK is never published as a release.
-- **Optional GitHub Release:** In the manual run select `publish_release` to upload the signed APK and SHA256 checksum as downloadable Release assets. Publishing is opt-in; the Actions artifact is uploaded whether publishing is chosen or not.
+- **Signed release APK:** Configure four GitHub Actions repository secrets: `ANDROID_KEYSTORE_BASE64` (production .jks file encoded as base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. When all four secrets are configured, a signed release APK builds automatically on pushes to `main`, and also on manual runs. Without those secrets, release builds now fail with a clear signing configuration error, instead of incorrectly reporting success. An unsigned APK is never published as a release.
+- **Direct signed APK:** Successful signed builds publish a directly downloadable APK plus checksum to GitHub Releases as a prerelease. Manual runs with `publish_release=true` promote the artifact to a regular release.
 - **Signing compatibility:** Both variants have application ID `com.mythos.split`, but APKs signed with different keys cannot update one another. Do not uninstall an app containing local expenses just to change signatures; uninstalling deletes its private data. Maintain the same private release keystore for all production updates.
 - **Versions:** Both workflows calculate `splitCiRunNumber` as 1000 + full Git commit count + that workflow’s run number + (run attempt - 1). This ensures that a manual rebuild of the same commit receives a newer version than its previous run. Update `version.properties` for MAJOR/MINOR/PATCH. Increase the version or revise the scheme before this build sequence reaches 9999; each release and debug workflow maintains its own run counter and signing identity.
 - **Local signing:** Copy `signing.properties.example` to ignored `signing.properties`, and store the keystore outside version control. Debug builds never read signing secrets.
@@ -157,3 +157,15 @@ Each tour group now shows four compact figures above its Activity/Balances/Insig
 The compact panel also identifies **Bills paid by me** and **Cash sent** (advances given plus repayments sent), avoiding confusion between consumption and funding.
 
 Tap **Set Me** to select your existing participant name, or **Change Me** later. Split remembers this selection *locally for that group* through device preferences: it does not authenticate an email account, create an online identity or change any financial record. Until selected, personal amounts are hidden rather than guessing the account owner. Existing tour PDFs continue to show every traveler's bills, own shares, cash advanced/received, repayments, and outstanding balances.
+
+## Permanent Android signing key setup
+
+The debug APK already builds and is directly downloadable from GitHub Releases. The production release APK requires the same permanent signing certificate on every update. If any of the four signing secrets are missing, the signed-release workflow intentionally fails with an error instead of showing misleading green success.
+
+1. Save your private permanent `.jks` keystore and its original password in a safe, backed-up location. **Never commit either to the repository.**
+2. On a trusted Windows PC, install and authenticate [GitHub CLI](https://cli.github.com/) using `gh auth login`.
+3. Download this repository and run in PowerShell: `.\\scripts\\Configure-ReleaseSigning.ps1 -KeystorePath "C:\\path\\to\\Split-Android-release.jks"`. The helper prompts for the password and uploads the four encrypted GitHub Actions repository secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+4. Run [Android Release APK](https://github.com/farhan2166-creator/Split-Android/actions/workflows/android-release.yml) manually on main. The job must build and verify a signed APK and publish a GitHub release asset. Merely passing the signing check does not mean an APK was built.
+5. Once configured, every main push will produce a verified signed APK as a direct-download prerelease; a manual run with `publish_release` enabled creates a regular GitHub Release.
+
+**Signature warning:** A newly signed production APK cannot be installed over a debug-signed APK, despite sharing the same application ID (`com.mythos.split`). Before switching certificates, export and verify a **full offline backup**. Uninstalling a debug-signed APK erases its local SQLite data.
