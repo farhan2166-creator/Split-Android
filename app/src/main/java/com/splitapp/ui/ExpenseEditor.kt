@@ -334,6 +334,18 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
             }
         }
     }
+    if (customCategory) {
+        TextEntryDialog(
+            title = "Add a category",
+            label = "Category name",
+            onDismiss = { customCategory = false }
+        ) { value ->
+            if (value.isNotBlank()) {
+                category = value.trim().take(40)
+                customCategory = false
+            }
+        }
+    }
     if (confirmDelete && existing != null) {
         AlertDialog(onDismissRequest = { confirmDelete = false }, title = { Text("Delete expense?") },
             text = { Text("This will remove the expense and recalculate every balance. This cannot be undone.") },
