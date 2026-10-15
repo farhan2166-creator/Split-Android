@@ -200,6 +200,10 @@ fun GroupScreen(
                 }
                 else -> {
                     item {
+                        SectionTitle("Plan your spending")
+                        BudgetPanel(detail, vm)
+                    }
+                    item {
                         SectionTitle("By category")
                         Text("Expenses only; repayments are excluded.", color = Muted, style = MaterialTheme.typography.bodySmall)
                     }
