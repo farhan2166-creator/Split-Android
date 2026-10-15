@@ -183,3 +183,5 @@ The updated Split interface takes inspiration from straightforward expense-share
 - **Save button:** remains visible at the bottom. The editor still checks title, amount, funding totals, selected travelers, and allocated totals before writing to the ledger.
 
 Long records and unusual font sizes can still scroll, so important information is never hidden. Financial calculations, cash advances, partial repayments, full offline backup, and single-page settlement PDFs are unchanged. Version 1.8 has no new runtime permission and keeps application ID `com.mythos.split`.
+
+New groups automatically mark their first participant as **Me** on the creating device. In existing or imported groups, you can change or clear the local selection through the group's traveler management; no account signup or personal data permissions are required.
