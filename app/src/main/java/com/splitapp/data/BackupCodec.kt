@@ -28,7 +28,8 @@ object BackupCodec {
                 put(JSONObject()
                     .put("group", JSONObject().put("id", g.id).put("name", g.name)
                         .put("currency", g.currency).put("createdAt", g.createdAt.toString())
-                        .put("archived", g.archived))
+                        .put("archived", g.archived)
+                        .put("monthlyBudgetMinor", g.monthlyBudgetMinor?.toString()))
                     .put("members", JSONArray().apply {
                         d.members.forEach { m -> put(JSONObject().put("id", m.id)
                             .put("groupId", m.groupId).put("name", m.name)) }
@@ -94,7 +95,8 @@ object BackupCodec {
                 val data = array.getJSONObject(i)
                 val g = data.getJSONObject("group")
                 val group = SplitGroup(g.getString("id"), g.getString("name"),
-                    g.getString("currency"), g.longString("createdAt"), g.getBoolean("archived"))
+                    g.getString("currency"), g.longString("createdAt"), g.getBoolean("archived"),
+                    if (g.isNull("monthlyBudgetMinor")) null else g.longString("monthlyBudgetMinor"))
                 val memberArray = data.getJSONArray("members").checked()
                 val members = buildList {
                     for (j in 0 until memberArray.length()) {
@@ -157,6 +159,7 @@ object BackupCodec {
             validLabel(g.name)
             require(g.currency.matches(Regex("[A-Z]{3}"))) { "Invalid currency in ${g.name}" }
             require(g.createdAt >= 0) { "Invalid group date" }
+            require(g.monthlyBudgetMinor == null || g.monthlyBudgetMinor > 0L) { "Invalid group budget" }
             require(d.members.isNotEmpty()) { "Group ${g.name} has no participants" }
             val memberIds = mutableSetOf<String>()
             val names = mutableSetOf<String>()
