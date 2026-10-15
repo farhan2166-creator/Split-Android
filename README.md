@@ -121,3 +121,16 @@ Within any group, open **Insights → Plan your spending** to set an optional mo
 - JVM tests cover month boundaries, budget thresholds, no-budget behavior and the full backup round-trip.
 
 The budget is a voluntary planning tool and does not automatically send notifications.
+
+## Screen-first navigation (v1.5)
+
+The home screen now has a permanent **Groups | Archived | Settings** bottom bar. Group screens use a permanent **Activity | Balances | Insights** bar, while the total-spending summary and primary Expense, Repay and PDF actions remain visible at the top. Home search and the selected tabs remain intact when opening a group, editing an expense, generating a report or navigating back.
+
+Large forms are separated into deliberately short screens:
+- **Expense entry:** Details / Split bottom tabs with a persistent Save button. If validation fails, the app switches to the relevant tab.
+- **PDF ledger:** People / Dates / Options bottom tabs with a persistent Save PDF button and validation directing the user to the relevant step.
+- **Repayments:** A single compact page with a fixed save action.
+
+The purpose is to avoid scrolling through entire *screens*. Long group transaction histories, unusually large member lists, keyboard-covered content and enlarged accessibility text may still require scrolling; removing that scrolling would hide essential information.
+
+This release does not add Gmail permissions, cloud sync, an account system or invitation links. The app remains offline-first: group membership exists only in the current on-device ledger and is transferable via the existing validated full backup/restore process.
