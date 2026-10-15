@@ -43,7 +43,19 @@ class SplitViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createGroup(name: String, currency: String, firstMember: String, done: (String) -> Unit) = perform({ database.createGroup(name, currency, firstMember) }, done)
+    fun createGroup(name: String, currency: String, firstMember: String, done: (String) -> Unit) =
+        perform({
+            val id = database.createGroup(name, currency, firstMember)
+            val creator = database.group(id)?.members?.singleOrNull()?.id
+                ?: error("Unable to find creator after creating the group")
+            id to creator
+        }, { (id, creator) ->
+            // This is local device identity, not a Gmail login or cloud membership.
+            getApplication<Application>().getSharedPreferences(
+                "split_group_identity", Application.MODE_PRIVATE
+            ).edit().putString("member_$id", creator).apply()
+            done(id)
+        })
     fun addMember(groupId: String, name: String, done: () -> Unit = {}) = perform({ database.addMember(groupId, name) }, { done() })
     fun renameMember(groupId: String, memberId: String, name: String, done: () -> Unit = {}) = perform({ database.renameMember(groupId, memberId, name) }, { done() })
     fun setArchived(groupId: String, archived: Boolean, done: () -> Unit = {}) = perform({ database.setArchived(groupId, archived) }, { done() })
