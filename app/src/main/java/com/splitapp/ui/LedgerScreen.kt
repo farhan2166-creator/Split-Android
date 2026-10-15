@@ -64,6 +64,7 @@ fun LedgerScreen(
     var startDate by remember(detail.group.id) { mutableLongStateOf(dayStart(System.currentTimeMillis())) }
     var endDate by remember(detail.group.id) { mutableLongStateOf(dayStart(System.currentTimeMillis())) }
     var error by remember { mutableStateOf<String?>(null) }
+    var step by remember(detail.group.id) { mutableIntStateOf(0) }
     var includeLedgerDetails by remember(detail.group.id) { mutableStateOf(true) }
     var includeActivity by remember(detail.group.id) { mutableStateOf(true) }
 
@@ -81,8 +82,9 @@ fun LedgerScreen(
     Scaffold(
         topBar = { AppHeader("PDF Ledger", detail.group.name, onBack) },
         bottomBar = {
-            Surface(shadowElevation = 6.dp, modifier = Modifier.navigationBarsPadding()) {
-                Button(
+            Column {
+                Surface(shadowElevation = 3.dp) {
+                    Button(
                     enabled = members.isNotEmpty(),
                     onClick = {
                         val ids = when (scope) {
@@ -100,8 +102,8 @@ fun LedgerScreen(
                             } else null
                         }
                         when {
-                            ids.isEmpty() -> error = "Select at least one participant"
-                            bounds == null -> error = "Start date cannot be after end date"
+                            ids.isEmpty() -> { step = 0; error = "Select at least one participant" }
+                            bounds == null -> { step = 1; error = "Start date cannot be after end date" }
                             else -> try {
                                 error = null
                                 onSave(LedgerReportBuilder.build(detail, ids, bounds), LedgerPdfOptions(includeLedgerDetails, includeActivity))
@@ -110,8 +112,13 @@ fun LedgerScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)
-                ) { Text("Save PDF ledger") }
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 7.dp)
+                    ) { Text("Save PDF ledger") }
+                }
+                SplitBottomTabs(
+                    listOf("People" to "♙", "Dates" to "◷", "Options" to "☷"),
+                    step
+                ) { step = it }
             }
         }
     ) { padding ->
@@ -119,7 +126,7 @@ fun LedgerScreen(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            CompactPanel {
+            if (step == 0) CompactPanel {
                 Text("Choose report coverage", style = MaterialTheme.typography.titleMedium)
                 Text("Group ledger, one person or multiple selected people.", style = MaterialTheme.typography.bodySmall, color = Muted)
                 Spacer(Modifier.height(6.dp))
@@ -154,7 +161,7 @@ fun LedgerScreen(
                     }
                 }
             }
-            CompactPanel {
+            if (step == 1) CompactPanel {
                 Text("Date range", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
                 DateMode.entries.forEach { option ->
@@ -173,14 +180,14 @@ fun LedgerScreen(
                     }
                 }
             }
-            CompactPanel {
+            if (step == 2) CompactPanel {
                 Text("Included in the PDF", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
                 Text("Opening balance, expense payments, each person's allocated shares, repayments, running balances and closing balance. Includes a group activity appendix.", color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Text("The report is calculated from existing records. Saving a PDF does not change any expenses or balances.", style = MaterialTheme.typography.bodySmall, color = Muted)
             }
-            CompactPanel {
+            if (step == 2) CompactPanel {
                 Text("PDF detail level", style = MaterialTheme.typography.titleMedium)
                 Text("The summary, category spending and closing balances are always included.", style = MaterialTheme.typography.bodySmall, color = Muted)
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
