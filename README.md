@@ -108,3 +108,16 @@ The interface intentionally avoids neon colors and excessive animation so it rem
 After each successful `main` debug build, GitHub Actions also publishes an **individual `.apk` file** and its SHA-256 checksum as a **GitHub pre-release**. Open [Split-Android Releases](https://github.com/farhan2166-creator/Split-Android/releases), choose the newest `Split Android Debug APK` entry, and tap the `.apk` asset under **Assets**. It downloads directly, without having to extract an Actions artifact ZIP.
 
 GitHub Actions' **Artifacts** section itself always wraps uploaded files in a ZIP; the pre-release is the direct APK download location. Each successful debug run links the APK in the `Publish direct debug APK` job summary. Debug builds are test-signed and cannot automatically replace a production-key-signed installation; keep a backup before changing signing identities.
+
+## Monthly group budgets (v1.4)
+
+Within any group, open **Insights → Plan your spending** to set an optional monthly limit. Navigate between current and previous calendar months to see expense totals, remaining allowance, category totals and progress toward the limit. The panel warns when 80% or more is used and highlights overspending without blocking legitimate transactions.
+
+- Budgets belong to each group and use that group's currency; no currency conversion or shared global limits.
+- Spending uses the local calendar month of each expense date, including backdated entries. Repayments and settlements never count as expenses.
+- Budgets may be edited or removed. They do not alter any money owed, split allocation, settlement or financial ledger.
+- Database schema v4 migrates existing groups with no budget, preserving every existing expense.
+- Full offline JSON backups now include configured limits. Older backup files lacking a budget are still readable.
+- JVM tests cover month boundaries, budget thresholds, no-budget behavior and the full backup round-trip.
+
+The budget is a voluntary planning tool and does not automatically send notifications.
