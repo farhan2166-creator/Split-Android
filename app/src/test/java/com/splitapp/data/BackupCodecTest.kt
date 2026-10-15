@@ -26,6 +26,21 @@ class BackupCodecTest {
         assertTrue(restored.groups.single().group.archived)
     }
 
+    @Test fun monthlyBudgetSurvivesFullBackupRoundTrip() {
+        val withBudget = detail.copy(group = detail.group.copy(monthlyBudgetMinor = 250000L))
+        val restored = BackupCodec.decode(BackupCodec.encode(BackupSnapshot(listOf(withBudget))))
+        assertEquals(250000L, restored.groups.single().group.monthlyBudgetMinor)
+        assertEquals(SplitMath.balances(withBudget),
+            SplitMath.balances(restored.groups.single()))
+    }
+
+    @Test fun olderBackupWithoutBudgetDefaultsToNull() {
+        val original = BackupCodec.encode(BackupSnapshot(listOf(detail)))
+        // Existing archives have no budget key; decoding must preserve compatibility.
+        val decoded = BackupCodec.decode(original)
+        assertNull(decoded.groups.single().group.monthlyBudgetMinor)
+    }
+
     @Test fun emptyBackupRoundTrips() {
         assertEquals(BackupSnapshot(emptyList()),
             BackupCodec.decode(BackupCodec.encode(BackupSnapshot(emptyList()))))
