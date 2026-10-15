@@ -22,7 +22,9 @@ import java.util.Date
 fun GroupsScreen(
     groups: List<SplitGroup>, vm: SplitViewModel, onOpen: (String) -> Unit,
     appearance: AppearanceMode, onAppearanceChange: (AppearanceMode) -> Unit,
-    onExportBackup: () -> Unit, onImportBackup: () -> Unit
+    onExportBackup: () -> Unit, onImportBackup: () -> Unit,
+    selectedTab: Int, onTabChange: (Int) -> Unit,
+    filter: String, onFilterChange: (String) -> Unit
 ) {
     val context = LocalContext.current
     val packageInfo = remember(context) {
@@ -30,8 +32,7 @@ fun GroupsScreen(
         context.packageManager.getPackageInfo(context.packageName, 0)
     }
     var showCreate by remember { mutableStateOf(false) }
-    var filter by remember { mutableStateOf("") }
-    var tab by remember { mutableIntStateOf(0) }
+    val tab = selectedTab
     val archived = tab == 1
     val visibleGroups = remember(groups, filter, archived) {
         groups.filter {
@@ -58,8 +59,8 @@ fun GroupsScreen(
                 listOf("Groups" to "▦", "Archived" to "◷", "Settings" to "⚙"),
                 tab
             ) {
-                tab = it
-                filter = ""
+                onTabChange(it)
+                onFilterChange("")
             }
         }
     ) { padding ->
@@ -125,7 +126,7 @@ fun GroupsScreen(
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
-                    value = filter, onValueChange = { filter = it },
+                    value = filter, onValueChange = onFilterChange,
                     placeholder = { Text("Search by group or currency") },
                     singleLine = true, leadingIcon = { Text("⌕") },
                     modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium
