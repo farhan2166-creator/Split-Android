@@ -9,7 +9,7 @@ import com.splitapp.model.*
 import java.util.UUID
 
 /** On-device source of truth. Every ledger write that spans tables is transactional. */
-class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db", null, 4) {
+class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db", null, 5) {
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
         db.setForeignKeyConstraintsEnabled(true)
@@ -20,7 +20,7 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
         db.execSQL("""CREATE TABLE members (id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE, name TEXT NOT NULL COLLATE NOCASE, UNIQUE(group_id, name))""")
         db.execSQL("""CREATE TABLE expenses (id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE, title TEXT NOT NULL, category TEXT NOT NULL, amount_minor INTEGER NOT NULL CHECK(amount_minor > 0), paid_by TEXT NOT NULL REFERENCES members(id), note TEXT NOT NULL, timestamp INTEGER NOT NULL)""")
         db.execSQL("""CREATE TABLE allocations (expense_id TEXT NOT NULL REFERENCES expenses(id) ON DELETE CASCADE, member_id TEXT NOT NULL REFERENCES members(id), amount_minor INTEGER NOT NULL CHECK(amount_minor >= 0), PRIMARY KEY (expense_id, member_id))""")
-        db.execSQL("""CREATE TABLE transfers (id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE, from_member TEXT NOT NULL REFERENCES members(id), to_member TEXT NOT NULL REFERENCES members(id), amount_minor INTEGER NOT NULL CHECK(amount_minor > 0), note TEXT NOT NULL, timestamp INTEGER NOT NULL, CHECK(from_member != to_member))""")
+        db.execSQL("""CREATE TABLE transfers (id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE, from_member TEXT NOT NULL REFERENCES members(id), to_member TEXT NOT NULL REFERENCES members(id), amount_minor INTEGER NOT NULL CHECK(amount_minor > 0), note TEXT NOT NULL, timestamp INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'REPAYMENT' CHECK(kind IN ('ADVANCE','REPAYMENT')), CHECK(from_member != to_member))""")
         db.execSQL("CREATE TABLE contributions (expense_id TEXT NOT NULL REFERENCES expenses(id) ON DELETE CASCADE, member_id TEXT NOT NULL REFERENCES members(id), amount_minor INTEGER NOT NULL CHECK(amount_minor > 0), PRIMARY KEY(expense_id,member_id))")
         db.execSQL("CREATE INDEX expenses_by_group ON expenses(group_id, timestamp DESC)")
         db.execSQL("CREATE INDEX transfers_by_group ON transfers(group_id, timestamp DESC)")
@@ -38,6 +38,9 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
         if (oldVersion < 4) {
             db.execSQL("ALTER TABLE groups ADD COLUMN monthly_budget_minor INTEGER CHECK(monthly_budget_minor > 0)")
         }
+        if (oldVersion < 5) {
+            db.execSQL("ALTER TABLE transfers ADD COLUMN kind TEXT NOT NULL DEFAULT 'REPAYMENT' CHECK(kind IN ('ADVANCE','REPAYMENT'))")
+        }
     }
 
     fun groups(): List<SplitGroup> = readableDatabase.rawQuery(
@@ -54,8 +57,8 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
             .use { c -> buildList { while (c.moveToNext()) add(Expense(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4), c.getString(5), c.getString(6), c.getLong(7))) } }
         val allocations = db.rawQuery("SELECT a.expense_id, a.member_id, a.amount_minor FROM allocations a JOIN expenses e ON e.id=a.expense_id WHERE e.group_id=?", arrayOf(id))
             .use { c -> buildList { while (c.moveToNext()) add(Allocation(c.getString(0), c.getString(1), c.getLong(2))) } }
-        val transfers = db.rawQuery("SELECT id, group_id, from_member, to_member, amount_minor, note, timestamp FROM transfers WHERE group_id=? ORDER BY timestamp DESC, id", arrayOf(id))
-            .use { c -> buildList { while (c.moveToNext()) add(Transfer(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4), c.getString(5), c.getLong(6))) } }
+        val transfers = db.rawQuery("SELECT id, group_id, from_member, to_member, amount_minor, note, timestamp, kind FROM transfers WHERE group_id=? ORDER BY timestamp DESC, id", arrayOf(id))
+            .use { c -> buildList { while (c.moveToNext()) add(Transfer(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4), c.getString(5), c.getLong(6), TransferKind.valueOf(c.getString(7)))) } }
         val contributions = db.rawQuery("SELECT c.expense_id,c.member_id,c.amount_minor FROM contributions c JOIN expenses e ON e.id=c.expense_id WHERE e.group_id=?", arrayOf(id))
             .use { c -> buildList { while(c.moveToNext()) add(Contribution(c.getString(0),c.getString(1),c.getLong(2))) } }
         return GroupDetail(group, members, expenses, allocations, transfers, contributions)
@@ -150,7 +153,7 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
                         "id" to t.id, "group_id" to t.groupId,
                         "from_member" to t.fromMember, "to_member" to t.toMember,
                         "amount_minor" to t.amountMinor, "note" to t.note,
-                        "timestamp" to t.timestamp
+                        "timestamp" to t.timestamp, "kind" to t.kind.name
                     ))
                 }
             }
@@ -245,7 +248,7 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
             val ids = db.rawQuery("SELECT id FROM members WHERE group_id=?", arrayOf(transfer.groupId))
                 .use { c -> buildSet { while (c.moveToNext()) add(c.getString(0)) } }
             require(transfer.fromMember in ids && transfer.toMember in ids)
-            db.insertOrThrow("transfers", null, cv("id" to transfer.id, "group_id" to transfer.groupId, "from_member" to transfer.fromMember, "to_member" to transfer.toMember, "amount_minor" to transfer.amountMinor, "note" to transfer.note.trim(), "timestamp" to transfer.timestamp))
+            db.insertOrThrow("transfers", null, cv("id" to transfer.id, "group_id" to transfer.groupId, "from_member" to transfer.fromMember, "to_member" to transfer.toMember, "amount_minor" to transfer.amountMinor, "note" to transfer.note.trim(), "timestamp" to transfer.timestamp, "kind" to transfer.kind.name))
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }
     }
