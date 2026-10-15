@@ -62,7 +62,14 @@ fun GroupScreen(
         topBar = {
             AppHeader(detail.group.name, "${detail.members.size} travelers · ${detail.group.currency}", onBack) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { searchExpanded = !searchExpanded; onTabChange(0) }) {
+                    IconButton(onClick = {
+                        searchExpanded = !searchExpanded
+                        if (!searchExpanded) {
+                            search = ""
+                            categoryFilter = "All"
+                        }
+                        onTabChange(0)
+                    }) {
                         Text("⌕", style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.primary)
                     }
@@ -135,7 +142,7 @@ fun GroupScreen(
                                 placeholder = { Text("Search activity") },
                                 singleLine = true,
                                 trailingIcon = {
-                                    TextButton(onClick = { search = ""; searchExpanded = false }) { Text("✕") }
+                                    TextButton(onClick = { search = ""; categoryFilter = "All"; searchExpanded = false }) { Text("✕") }
                                 }
                             )
                             Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()),
