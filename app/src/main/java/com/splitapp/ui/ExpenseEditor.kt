@@ -150,7 +150,6 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                     categories.forEach { item -> FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item) }) }
                 }
                 Spacer(Modifier.height(7.dp))
-                Spacer(Modifier.height(7.dp))
                 OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") },
                     modifier = Modifier.fillMaxWidth(), minLines = 1, maxLines = 2)
             }
