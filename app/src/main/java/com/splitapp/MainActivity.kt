@@ -38,6 +38,9 @@ import com.splitapp.ui.PaymentEditor
 import com.splitapp.ui.LedgerScreen
 import com.splitapp.model.LedgerReport
 import com.splitapp.report.PdfLedgerWriter
+import com.splitapp.report.TourSettlementPdf
+import com.splitapp.model.TourSettlement
+import com.splitapp.model.TourSettlementBuilder
 import com.splitapp.report.LedgerPdfOptions
 import com.splitapp.data.BackupSnapshot
 import com.splitapp.ui.BackupRestoreDialog
@@ -146,6 +149,25 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 var pendingCsv by remember { mutableStateOf("") }
+                var pendingTourSettlement by remember { mutableStateOf<TourSettlement?>(null) }
+                val saveTourStatement = rememberLauncherForActivityResult(
+                    ActivityResultContracts.CreateDocument("application/pdf")
+                ) { uri ->
+                    val snapshot = pendingTourSettlement
+                    pendingTourSettlement = null
+                    if (uri != null && snapshot != null) scope.launch {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                contentResolver.openOutputStream(uri)?.use { output ->
+                                    TourSettlementPdf.write(output, snapshot)
+                                } ?: error("Unable to create statement PDF")
+                            }
+                            vm.showMessage("Tour settlement PDF saved")
+                        } catch (e: Exception) {
+                            vm.showMessage("Could not save tour statement: ${e.message ?: "Invalid statement"}")
+                        }
+                    }
+                }
                 var pendingLedger by remember { mutableStateOf<LedgerReport?>(null) }
                 var pendingPdfOptions by remember { mutableStateOf(LedgerPdfOptions()) }
                 val savePdf = rememberLauncherForActivityResult(
@@ -244,6 +266,14 @@ class MainActivity : ComponentActivity() {
                                 onExpense = { id -> screen = Screen.ExpenseForm(current.id, id) },
                                 onPayment = { from, to, amount -> screen = Screen.PaymentForm(current.id, from, to, amount) },
                                 onLedger = { screen = Screen.LedgerForm(current.id) },
+                                onTourStatement = {
+                                    try {
+                                        pendingTourSettlement = TourSettlementBuilder.build(item)
+                                        saveTourStatement.launch("Split-Tour-Settlement.pdf")
+                                    } catch (e: Exception) {
+                                        vm.showMessage("Unable to build settlement: ${e.message ?: "Invalid ledger"}")
+                                    }
+                                },
                                 onShare = { text, mime ->
                                     if (mime == "text/csv") {
                                         pendingCsv = text
