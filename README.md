@@ -169,3 +169,17 @@ The debug APK already builds and is directly downloadable from GitHub Releases. 
 5. Once configured, every main push will produce a verified signed APK as a direct-download prerelease; a manual run with `publish_release` enabled creates a regular GitHub Release.
 
 **Signature warning:** A newly signed production APK cannot be installed over a debug-signed APK, despite sharing the same application ID (`com.mythos.split`). Before switching certificates, export and verify a **full offline backup**. Uninstalling a debug-signed APK erases its local SQLite data.
+
+## Compact tour-first interface (v1.8)
+
+The updated Split interface takes inspiration from straightforward expense-share apps while retaining its own calm teal/sage styling and **no receipt-photo feature**.
+
+- **Home:** a centered quick-add group button, easy-to-scan travel group cards, search, and fixed Groups / Archived / Settings navigation.
+- **Group activity:** dated expense and money-movement entries, a search toggle, minimal header actions, and a menu for rename, sharing, traveler management, insights, PDF ledger, and archiving.
+- **Balances:** a prominent personal balance summary that clearly says **To pay**, **To collect**, or **Settled**; readable, labeled balance rows for every traveler, a **Me** marker, and one-tap access to suggested reimbursements. Suggestions only become actual payments when explicitly recorded.
+- **Manage travelers:** add or rename people and choose **Me** locally, without any sign-in, invite link, backend, or account permission. Existing ledger references are not deleted.
+- **One-screen Add Expense:** title, amount, payer, date, expense category and all travelers' split checkboxes stay together in the normal equal-split workflow. Equal, weighted shares, percentages, and exact amounts are available from the split-method picker. **Custom category** allows additional expense types.
+- **More options:** expands only when needed for shared bill funding or notes. Existing custom allocations and multiple-payer records remain editable.
+- **Save button:** remains visible at the bottom. The editor still checks title, amount, funding totals, selected travelers, and allocated totals before writing to the ledger.
+
+Long records and unusual font sizes can still scroll, so important information is never hidden. Financial calculations, cash advances, partial repayments, full offline backup, and single-page settlement PDFs are unchanged. Version 1.8 has no new runtime permission and keeps application ID `com.mythos.split`.
