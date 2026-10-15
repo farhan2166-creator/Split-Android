@@ -86,10 +86,10 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                     when {
                         title.isBlank() -> { step = 0; error = "Enter a description" }
                         amount == null || amount <= 0 -> { step = 0; error = "Enter a valid amount (up to 2 decimal places)" }
-                        selected.isEmpty() -> { step = 1; error = "Choose at least one person to split with" }
-                        funding == null -> { step = 0; error = "Amounts paid by participants must add up to the expense total" }
+                        selected.isEmpty() -> { step = 2; error = "Choose at least one person to split with" }
+                        funding == null -> { step = 1; error = "Amounts paid by participants must add up to the expense total" }
                         allocations == null -> {
-                            step = 1
+                            step = 2
                             error = when (mode) {
                             Mode.Percent -> "Percentages must add up to exactly 100%"
                             Mode.Exact -> "Exact amounts must add up to the total"
@@ -110,7 +110,7 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                         Text(if (existing == null) "Save expense" else "Save changes")
                     }
                 }
-                SplitBottomTabs(listOf("Details" to "✎", "Split" to "÷"), step) { step = it }
+                SplitBottomTabs(listOf("Details" to "✎", "Payers" to "⇄", "Split" to "÷"), step) { step = it }
             }
         }
     ) { padding ->
@@ -150,6 +150,14 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                     categories.forEach { item -> FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item) }) }
                 }
                 Spacer(Modifier.height(7.dp))
+                Spacer(Modifier.height(7.dp))
+                OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") },
+                    modifier = Modifier.fillMaxWidth(), minLines = 1, maxLines = 2)
+            }
+            if (step == 1) CompactPanel {
+                Text("02  ·  WHO PAID", color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(8.dp))
                 Text("Who covered the bill?", style = MaterialTheme.typography.labelLarge)
                 if (!multiplePayers) PersonPicker(detail.members, payer) { payer = it }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -171,11 +179,9 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                         )
                     }
                 }
-                Spacer(Modifier.height(6.dp))
-                OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 1, maxLines = 2)
             }
-            if (step == 1) CompactPanel {
-                Text("02  ·  SPLIT BETWEEN", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+            if (step == 2) CompactPanel {
+                Text("03  ·  SPLIT BETWEEN", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(6.dp))
                 Text("Choose who benefited. The person who paid can be included or excluded.", color = Muted, style = MaterialTheme.typography.bodySmall)
                 detail.members.forEach { member ->
