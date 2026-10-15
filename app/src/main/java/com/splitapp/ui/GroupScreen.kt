@@ -36,6 +36,10 @@ fun GroupScreen(
     var editMemberId by remember { mutableStateOf<String?>(null) }
     var rename by remember { mutableStateOf(false) }
     var archiveConfirm by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
+    var manageTravelers by remember { mutableStateOf(false) }
+    var suggestionsOpen by remember { mutableStateOf(false) }
+    var searchExpanded by remember(detail.group.id) { mutableStateOf(false) }
     var search by remember(detail.group.id) { mutableStateOf("") }
     var categoryFilter by remember(detail.group.id) { mutableStateOf("All") }
     var deleteTransfer by remember { mutableStateOf<String?>(null) }
@@ -56,10 +60,38 @@ fun GroupScreen(
     val myStatement = statement.members.firstOrNull { it.member.id == myMemberId }
     Scaffold(
         topBar = {
-            AppHeader(detail.group.name, "${detail.members.size} people  ·  ${detail.group.currency}", onBack) {
-                Row {
-                    TextButton(onClick = { archiveConfirm = true }) { Text(if (detail.group.archived) "Restore" else "Archive") }
-                    TextButton(onClick = { rename = true }) { Text("Edit") }
+            AppHeader(detail.group.name, "${detail.members.size} travelers · ${detail.group.currency}", onBack) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { searchExpanded = !searchExpanded; onTabChange(0) }) {
+                        Text("⌕", style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Text("⋮", style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onSurface)
+                        }
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            DropdownMenuItem(text = { Text("Manage travelers") }, onClick = {
+                                menuExpanded = false; manageTravelers = true
+                            })
+                            DropdownMenuItem(text = { Text("Edit group name") }, onClick = {
+                                menuExpanded = false; rename = true
+                            })
+                            DropdownMenuItem(text = { Text("Share balances") }, onClick = {
+                                menuExpanded = false
+                                onShare(summary(detail, balances), "text/plain")
+                            })
+                            DropdownMenuItem(text = { Text("Spending insights") }, onClick = {
+                                menuExpanded = false; onTabChange(2)
+                            })
+                            DropdownMenuItem(text = { Text("Detailed PDF ledger") }, onClick = {
+                                menuExpanded = false; onLedger()
+                            })
+                            DropdownMenuItem(text = { Text(if (detail.group.archived) "Restore group" else "Archive group") },
+                                onClick = { menuExpanded = false; archiveConfirm = true })
+                        }
+                    }
                 }
             }
         },
@@ -87,23 +119,31 @@ fun GroupScreen(
             when (tab) {
                 0 -> {
                     item {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            SectionTitle("Participants", "${detail.members.size} members")
-                            TextButton(onClick = { addMember = true }) { Text("+ Add") }
-                        }
-                        Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            detail.members.forEach { member ->
-                                AssistChip(onClick = { editMemberId = member.id }, label = { Text(member.name) })
+                        Row(Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Text("Recent activity", style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold)
+                            TextButton(onClick = { manageTravelers = true }) {
+                                Text("${detail.members.size} travelers  ›")
                             }
                         }
-                        SectionTitle("All activity")
-                        OutlinedTextField(
-                            value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Search expenses or participants") }, singleLine = true
-                        )
-                        Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            (listOf("All") + detail.expenses.map { it.category }.distinct()).forEach { value ->
-                                FilterChip(selected = categoryFilter == value, onClick = { categoryFilter = value }, label = { Text(value) })
+                        if (searchExpanded) {
+                            OutlinedTextField(
+                                value = search, onValueChange = { search = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("Search activity") },
+                                singleLine = true,
+                                trailingIcon = {
+                                    TextButton(onClick = { search = ""; searchExpanded = false }) { Text("✕") }
+                                }
+                            )
+                            Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                (listOf("All") + detail.expenses.map { it.category }.distinct()).forEach { value ->
+                                    FilterChip(selected = categoryFilter == value,
+                                        onClick = { categoryFilter = value }, label = { Text(value) })
+                                }
                             }
                         }
                     }
@@ -111,12 +151,34 @@ fun GroupScreen(
                         (categoryFilter == "All" || expense.category == categoryFilter) &&
                         (search.isBlank() || expense.title.contains(search, true) || expense.category.contains(search, true) || names[expense.paidBy].orEmpty().contains(search, true) || expense.note.contains(search, true))
                     } + detail.transfers.filter { transfer ->
-                        categoryFilter == "All" && (search.isBlank() || "repayment".contains(search, true) || names[transfer.fromMember].orEmpty().contains(search, true) || names[transfer.toMember].orEmpty().contains(search, true) || transfer.note.contains(search, true))
+                        categoryFilter == "All" && (search.isBlank() ||
+                        (if (transfer.kind == TransferKind.ADVANCE) "cash advance" else "repayment").contains(search, true) || names[transfer.fromMember].orEmpty().contains(search, true) || names[transfer.toMember].orEmpty().contains(search, true) || transfer.note.contains(search, true))
                     }).sortedByDescending {
                         when (it) { is Expense -> it.timestamp; is Transfer -> it.timestamp; else -> 0L }
                     }
                     if (activity.isEmpty()) item { EmptyState(if (detail.expenses.isEmpty() && detail.transfers.isEmpty()) "No transactions yet" else "No matching activity", if (detail.expenses.isEmpty() && detail.transfers.isEmpty()) "Add an expense such as dinner, tickets or rent." else "Clear the search or change the category.") }
-                    items(activity, key = { when (it) { is Expense -> "e${it.id}"; is Transfer -> "t${it.id}"; else -> "" } }) { entry ->
+                    var lastDay: String? = null
+                    activity.forEach { entry ->
+                        val transactionTime = when (entry) {
+                            is Expense -> entry.timestamp
+                            is Transfer -> entry.timestamp
+                            else -> 0L
+                        }
+                        val day = java.text.DateFormat.getDateInstance(DateFormat.LONG)
+                            .format(Date(transactionTime))
+                        if (day != lastDay) {
+                            item(key = "date_${transactionTime}_${day}") {
+                                Text(day, color = Muted, fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(start = 5.dp, top = 9.dp, bottom = 3.dp))
+                            }
+                            lastDay = day
+                        }
+                        item(key = when (entry) {
+                            is Expense -> "e${entry.id}"
+                            is Transfer -> "t${entry.id}"
+                            else -> ""
+                        }) {
                         when (entry) {
                             is Expense -> SurfaceCard(Modifier.clickable { onExpense(entry.id) }) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -158,24 +220,21 @@ fun GroupScreen(
                                 }
                             }
                         }
+                        }
                     }
                 }
                 1 -> {
                     item {
-                        SectionTitle("Individual balances")
-                        Text("Positive means they should receive money; negative means they owe.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        PersonalBalanceBanner(
+                            myStatement?.balanceMinor, detail.group.currency,
+                            onChooseMe = { showMePicker = true },
+                            onViewSuggestions = { suggestionsOpen = true }
+                        )
+                        SectionTitle("Balances", "${detail.members.size} travelers")
                     }
                     items(detail.members, key = { it.id }) { member ->
-                        val amount = balances[member.id] ?: 0L
-                        SurfaceCard {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(member.name, fontWeight = FontWeight.Bold)
-                                    Text(when { amount > 0 -> "Gets back"; amount < 0 -> "Owes"; else -> "Settled" }, style = MaterialTheme.typography.bodySmall, color = Muted)
-                                }
-                                MoneyLabel(kotlin.math.abs(amount), detail.group.currency, if (amount < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                            }
-                        }
+                        TravelerBalanceCard(member, balances[member.id] ?: 0L,
+                            detail.group.currency, member.id == myMemberId)
                     }
                     item { SectionTitle("Suggested repayments", "${settlements.size} transfers") }
                     if (settlements.isEmpty()) item { EmptyState("Everyone is settled", "No outstanding repayments in this group.") }
@@ -252,6 +311,80 @@ fun GroupScreen(
             }
             }
         }
+    }
+    if (suggestionsOpen) {
+        AlertDialog(
+            onDismissRequest = { suggestionsOpen = false },
+            title = { Text("Suggested settlements") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (settlements.isEmpty()) Text("Everyone is settled.", color = Muted)
+                    settlements.forEach { payment ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("${names[payment.fromMember]} → ${names[payment.toMember]}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold)
+                                Text("${detail.group.currency} ${Money.format(payment.amountMinor)}",
+                                    style = MaterialTheme.typography.labelMedium, color = Muted)
+                            }
+                            TextButton(onClick = {
+                                suggestionsOpen = false
+                                onPayment(payment.fromMember, payment.toMember, payment.amountMinor)
+                            }) { Text("Record") }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { suggestionsOpen = false }) { Text("Close") } }
+        )
+    }
+    if (manageTravelers) {
+        AlertDialog(
+            onDismissRequest = { manageTravelers = false },
+            title = { Text("Travelers") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text("Tap a traveler to rename them. Choose Me to identify yourself on this phone.",
+                        style = MaterialTheme.typography.bodySmall, color = Muted)
+                    detail.members.forEach { person ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = androidx.compose.foundation.shape.CircleShape) {
+                                Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+                                    Text(person.name.take(1).uppercase(), fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(onClick = {
+                                manageTravelers = false
+                                editMemberId = person.id
+                            }, modifier = Modifier.weight(1f)) {
+                                Text(person.name, maxLines = 1)
+                            }
+                            if (person.id == myMemberId) {
+                                Text("Me", color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.labelMedium)
+                            } else {
+                                TextButton(onClick = {
+                                    myMemberId = person.id
+                                    preferences.edit().putString(identityKey, person.id).apply()
+                                }) { Text("Set Me") }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { manageTravelers = false; addMember = true }) {
+                    Text("+ Add traveler")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { manageTravelers = false }) { Text("Close") }
+            }
+        )
     }
     if (showMePicker) {
         AlertDialog(
