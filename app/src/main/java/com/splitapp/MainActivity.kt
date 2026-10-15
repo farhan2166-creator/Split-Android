@@ -20,6 +20,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -182,7 +183,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 var screen by remember { mutableStateOf<Screen>(Screen.Home) }
+                var homeTab by rememberSaveable { mutableIntStateOf(0) }
+                var homeFilter by rememberSaveable { mutableStateOf("") }
+                var groupTab by rememberSaveable { mutableIntStateOf(0) }
+                var lastGroupId by rememberSaveable { mutableStateOf<String?>(null) }
                 val goGroup: (String) -> Unit = { id ->
+                    if (lastGroupId != id) {
+                        groupTab = 0
+                        lastGroupId = id
+                    }
                     vm.openGroup(id)
                     screen = Screen.Group(id)
                 }
@@ -218,7 +227,11 @@ class MainActivity : ComponentActivity() {
                                     backupSave.launch("Split-Backup-$stamp.json")
                                 }
                             },
-                            onImportBackup = { backupOpen.launch(arrayOf("*/*")) }
+                            onImportBackup = { backupOpen.launch(arrayOf("*/*")) },
+                            selectedTab = homeTab,
+                            onTabChange = { homeTab = it },
+                            filter = homeFilter,
+                            onFilterChange = { homeFilter = it }
                         )
                         is Screen.Group -> {
                             val item = detail?.takeIf { it.group.id == current.id }
@@ -242,7 +255,9 @@ class MainActivity : ComponentActivity() {
                                         }
                                         startActivity(Intent.createChooser(intent, "Share from Split"))
                                     }
-                                }
+                                },
+                                selectedTab = groupTab,
+                                onTabChange = { groupTab = it }
                             )
                         }
                         is Screen.LedgerForm -> {
