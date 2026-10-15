@@ -26,6 +26,7 @@ fun GroupScreen(
     onExpense: (String?) -> Unit,
     onPayment: (String?, String?, Long?) -> Unit,
     onLedger: () -> Unit,
+    onTourStatement: () -> Unit,
     onShare: (String, String) -> Unit,
     selectedTab: Int, onTabChange: (Int) -> Unit
 ) {
@@ -68,7 +69,7 @@ fun GroupScreen(
                     Column(horizontalAlignment = Alignment.End) {
                         Text("${detail.expenses.size} expenses",
                             style = MaterialTheme.typography.labelSmall)
-                        Text("${detail.transfers.size} repayments",
+                        Text("${detail.transfers.count { it.kind == TransferKind.ADVANCE }} advances · ${detail.transfers.count { it.kind == TransferKind.REPAYMENT }} repayments",
                             style = MaterialTheme.typography.labelSmall, color = Muted)
                     }
                 }
@@ -77,7 +78,7 @@ fun GroupScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 CompactQuickAction("Expense", "+", { onExpense(null) }, Modifier.weight(1f))
                 CompactQuickAction("Repay", "↗", { onPayment(null, null, null) }, Modifier.weight(1f))
-                CompactQuickAction("PDF", "▤", onLedger, Modifier.weight(1f))
+                CompactQuickAction("Settle PDF", "▤", onTourStatement, Modifier.weight(1f))
             }
             Spacer(Modifier.height(5.dp))
             LazyColumn(
@@ -148,7 +149,7 @@ fun GroupScreen(
                                     Text("↗", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
                                     Spacer(Modifier.width(12.dp))
                                     Column(Modifier.weight(1f)) {
-                                        Text("Repayment", fontWeight = FontWeight.SemiBold)
+                                        Text(if (entry.kind == TransferKind.ADVANCE) "Cash advance" else "Repayment", fontWeight = FontWeight.SemiBold)
                                         Text("${names[entry.fromMember]} → ${names[entry.toMember]}", color = Muted, style = MaterialTheme.typography.bodySmall)
                                         Text(date(entry.timestamp), color = Muted, style = MaterialTheme.typography.labelSmall)
                                     }
@@ -244,7 +245,8 @@ fun GroupScreen(
                             Text("Your group data stays on this device.", style = MaterialTheme.typography.bodyMedium)
                             Spacer(Modifier.height(8.dp))
                             OutlinedButton(onClick = { onShare(summary(detail, balances), "text/plain") }, modifier = Modifier.fillMaxWidth()) { Text("Share balance summary") }
-                            OutlinedButton(onClick = onLedger, modifier = Modifier.fillMaxWidth()) { Text("PDF Ledger: participants and date range") }
+                            OutlinedButton(onClick = onTourStatement, modifier = Modifier.fillMaxWidth()) { Text("One-page tour settlement PDF") }
+                            OutlinedButton(onClick = onLedger, modifier = Modifier.fillMaxWidth()) { Text("Detailed PDF ledger: people and date range") }
                             OutlinedButton(onClick = { onShare(exportCsv(detail), "text/csv") }, modifier = Modifier.fillMaxWidth()) { Text("Export transactions as CSV") }
                         }
                     }
@@ -289,7 +291,7 @@ fun GroupScreen(
         AlertDialog(
             onDismissRequest = { deleteTransfer = null },
             title = { Text("Delete this repayment?") },
-            text = { Text("The balance will be recalculated as if this payment was never recorded.") },
+            text = { Text("Removing this cash movement recalculates everyone’s balance. This cannot be undone.") },
             confirmButton = { TextButton(onClick = { vm.deleteTransfer(detail.group.id, id); deleteTransfer = null }) { Text("Delete") } },
             dismissButton = { TextButton(onClick = { deleteTransfer = null }) { Text("Cancel") } }
         )
@@ -338,6 +340,6 @@ private fun exportCsv(detail: GroupDetail): String = buildString {
         appendLine(listOf("split", "", "", "", names[allocation.memberId].orEmpty(), Money.input(allocation.amountMinor), detail.group.currency, "", "expense_id=${allocation.expenseId}").joinToString(",", transform = ::csvCell))
     }
     detail.transfers.forEach { transfer ->
-        appendLine(listOf("repayment", date(transfer.timestamp), "Repayment", names[transfer.fromMember].orEmpty(), names[transfer.toMember].orEmpty(), Money.input(transfer.amountMinor), detail.group.currency, "", transfer.note).joinToString(",", transform = ::csvCell))
+        appendLine(listOf(if (transfer.kind == TransferKind.ADVANCE) "advance" else "repayment", date(transfer.timestamp), if (transfer.kind == TransferKind.ADVANCE) "Cash advance" else "Repayment", names[transfer.fromMember].orEmpty(), names[transfer.toMember].orEmpty(), Money.input(transfer.amountMinor), detail.group.currency, "", transfer.note).joinToString(",", transform = ::csvCell))
     }
 }
