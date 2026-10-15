@@ -26,9 +26,10 @@ fun GroupScreen(
     onExpense: (String?) -> Unit,
     onPayment: (String?, String?, Long?) -> Unit,
     onLedger: () -> Unit,
-    onShare: (String, String) -> Unit
+    onShare: (String, String) -> Unit,
+    selectedTab: Int, onTabChange: (Int) -> Unit
 ) {
-    var tab by remember(detail.group.id) { mutableIntStateOf(0) }
+    val tab = selectedTab
     var addMember by remember { mutableStateOf(false) }
     var editMemberId by remember { mutableStateOf<String?>(null) }
     var rename by remember { mutableStateOf(false) }
@@ -53,7 +54,7 @@ fun GroupScreen(
             SplitBottomTabs(
                 listOf("Activity" to "▤", "Balances" to "⇄", "Insights" to "◉"),
                 tab
-            ) { tab = it }
+            ) { onTabChange(it) }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp)) {
