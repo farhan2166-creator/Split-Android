@@ -35,6 +35,28 @@ class TourSettlementTest {
         assertEquals(2000L, s.suggestedRepayments.sumOf { it.amountMinor })
     }
 
+    @Test fun fourOverviewMetricsSeparateExpenseSharesFromCashReceived() {
+        val advances = Transfer("cash", "tour", "b", "a", 2200L, "Trip float", 5L, TransferKind.ADVANCE)
+        val repayment = Transfer("repayment", "tour", "c", "a", 800L, "Paid back", 6L, TransferKind.REPAYMENT)
+        val report = TourSettlementBuilder.build(detail(listOf(advances, repayment)))
+        val ali = report.members.first { it.member.id == "a" }
+        assertEquals(12000L, report.totalExpensesMinor)
+        assertEquals(4000L, ali.allocatedShareMinor)
+        assertEquals(3000L, ali.totalCashInMinor)
+        assertEquals(0L, ali.paidForExpensesMinor)
+        assertEquals(-7000L, ali.balanceMinor)
+        assertEquals(SplitMath.balances(detail(listOf(advances, repayment))).getValue("a"),
+            ali.balanceMinor)
+    }
+
+    @Test fun cashSentDoesNotIncreaseTourSpending() {
+        val advanced = Transfer("advance2", "tour", "c", "b", 500L, "", 1L, TransferKind.ADVANCE)
+        val report = TourSettlementBuilder.build(detail(listOf(advanced)))
+        assertEquals(12000L, report.totalExpensesMinor)
+        assertEquals(0L, report.members.first { it.member.id == "c" }.totalCashInMinor)
+        assertEquals(500L, report.members.first { it.member.id == "b" }.totalCashInMinor)
+    }
+
     @Test fun finalRepaymentsMarkTourSettledWithoutChangingSpending() {
         val transfers = listOf(
             Transfer("a1", "tour", "a", "b", 2000, "", 1, TransferKind.ADVANCE),

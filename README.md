@@ -144,3 +144,16 @@ Split now fits a 2–4-person tour across several cities, lasting a week or long
 The group action **Settle PDF** creates an offline, landscape A4 **single-page tour settlement** listing each traveler's actual bills paid, own expense share, advances given/received, repayments sent/received, final net balance, and the recommended final transfers. A full settlement is explicitly marked "FULLY SETTLED". The detailed multipage PDF ledger remains available under Insights for transaction-by-transaction evidence. The one-page layout supports up to eight travelers, optimized for 2–4.
 
 Transfer types are preserved in full backup/restore files. Existing transfers and older backups default to the prior **Repayment** category; a safe SQLite v5 migration preserves existing records. All balances are checked against the original SplitMath ledger.
+
+## At-a-glance tour metrics (v1.7)
+
+Each tour group now shows four compact figures above its Activity/Balances/Insights bottom tabs:
+
+- **Total Expenses:** all actual expense bills for the group, independent of who paid.
+- **My Expenses:** only the selected traveler's share of the bills (not their payments for everybody).
+- **Cash Received:** advances received plus repayments received, excluding expenses paid by someone else directly.
+- **Outstanding:** how much the selected traveler still needs to **pay** (negative balance) or **collect** (positive balance), or *Fully settled* when zero.
+
+The compact panel also identifies **Bills paid by me** and **Cash sent** (advances given plus repayments sent), avoiding confusion between consumption and funding.
+
+Tap **Set Me** to select your existing participant name, or **Change Me** later. Split remembers this selection *locally for that group* through device preferences: it does not authenticate an email account, create an online identity or change any financial record. Until selected, personal amounts are hidden rather than guessing the account owner. Existing tour PDFs continue to show every traveler's bills, own shares, cash advanced/received, repayments, and outstanding balances.
