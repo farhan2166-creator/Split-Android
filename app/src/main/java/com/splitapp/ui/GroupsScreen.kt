@@ -51,7 +51,9 @@ fun GroupsScreen(
                     else -> "Your shared expenses"
                 }
             ) {
-                if (tab != 2) TextButton(onClick = { showCreate = true }) { Text("+ New") }
+                if (tab == 2) Unit else TextButton(onClick = { showCreate = true }) {
+                    Text("+ Group")
+                }
             }
         },
         bottomBar = {
@@ -62,7 +64,23 @@ fun GroupsScreen(
                 onTabChange(it)
                 onFilterChange("")
             }
-        }
+        },
+        floatingActionButton = {
+            if (tab == 0) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    FloatingActionButton(onClick = { showCreate = true },
+                        shape = MaterialTheme.shapes.large,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary) {
+                        Text("+", style = MaterialTheme.typography.headlineMedium)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text("New group", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onBackground)
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.Center
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 14.dp)
@@ -120,9 +138,8 @@ fun GroupsScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold)
                     }
-                    if (!archived) {
-                        FilledTonalButton(onClick = { showCreate = true }) { Text("+ Create") }
-                    }
+                    Text(if (archived) "Completed trips" else "Trips & shared groups",
+                        color = Muted, style = MaterialTheme.typography.labelSmall)
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -148,7 +165,7 @@ fun GroupsScreen(
                 } else {
                     LazyColumn(
                         Modifier.weight(1f),
-                        contentPadding = PaddingValues(bottom = 12.dp),
+                        contentPadding = PaddingValues(bottom = if (archived) 12.dp else 100.dp),
                         verticalArrangement = Arrangement.spacedBy(7.dp)
                     ) {
                         items(visibleGroups, key = { it.id }) { group ->
@@ -161,22 +178,42 @@ fun GroupsScreen(
                                 shape = MaterialTheme.shapes.medium
                             ) {
                                 Row(
-                                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
+                                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    Surface(color = MaterialTheme.colorScheme.primaryContainer,
+                                        shape = MaterialTheme.shapes.medium) {
+                                        Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                                            Text(
+                                                if (group.name.contains("trip", true) ||
+                                                    group.name.contains("tour", true) ||
+                                                    group.name.contains("travel", true)) "🧭"
+                                                else group.name.trim().take(1).uppercase(),
+                                                style = MaterialTheme.typography.titleLarge,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.width(12.dp))
                                     Column(Modifier.weight(1f)) {
                                         Text(group.name, fontWeight = FontWeight.SemiBold,
                                             style = MaterialTheme.typography.titleMedium,
                                             maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Spacer(Modifier.height(3.dp))
                                         Text(
-                                            "${group.currency} · " +
+                                            "${group.currency}  ·  " +
                                                 DateFormat.getDateInstance(DateFormat.MEDIUM)
                                                     .format(Date(group.createdAt)),
-                                            color = Muted, style = MaterialTheme.typography.labelSmall
+                                            color = Muted, style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis
                                         )
                                     }
-                                    Text("›", style = MaterialTheme.typography.titleLarge,
-                                        color = MaterialTheme.colorScheme.primary)
+                                    Surface(color = MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = MaterialTheme.shapes.small) {
+                                        Text("›", style = MaterialTheme.typography.titleLarge,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                                    }
                                 }
                             }
                         }
