@@ -127,7 +127,7 @@ The budget is a voluntary planning tool and does not automatically send notifica
 The home screen now has a permanent **Groups | Archived | Settings** bottom bar. Group screens use a permanent **Activity | Balances | Insights** bar, while the total-spending summary and primary Expense, Repay and PDF actions remain visible at the top. Home search and the selected tabs remain intact when opening a group, editing an expense, generating a report or navigating back.
 
 Large forms are separated into deliberately short screens:
-- **Expense entry:** Details / Split bottom tabs with a persistent Save button. If validation fails, the app switches to the relevant tab.
+- **Expense entry:** Details / Payers / Split bottom tabs with a persistent Save button. If validation fails, the app switches to the relevant tab.
 - **PDF ledger:** People / Dates / Options bottom tabs with a persistent Save PDF button and validation directing the user to the relevant step.
 - **Repayments:** A single compact page with a fixed save action.
 
