@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +43,17 @@ fun GroupScreen(
     val settlements = remember(balances) { SplitMath.settle(balances) }
     val names = detail.members.associate { it.id to it.name }
     val total = detail.expenses.sumOf { it.amountMinor }
+    val context = LocalContext.current
+    val preferences = remember(context) {
+        context.getSharedPreferences("split_group_identity", android.content.Context.MODE_PRIVATE)
+    }
+    val identityKey = "member_${detail.group.id}"
+    var myMemberId by remember(detail.group.id) {
+        mutableStateOf(preferences.getString(identityKey, null))
+    }
+    var showMePicker by remember(detail.group.id) { mutableStateOf(false) }
+    val statement = remember(detail) { TourSettlementBuilder.build(detail) }
+    val myStatement = statement.members.firstOrNull { it.member.id == myMemberId }
     Scaffold(
         topBar = {
             AppHeader(detail.group.name, "${detail.members.size} people  ·  ${detail.group.currency}", onBack) {
@@ -59,21 +71,7 @@ fun GroupScreen(
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp)) {
-            CompactPanel {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("TOTAL SHARED", style = MaterialTheme.typography.labelSmall,
-                            color = Muted)
-                        MoneyLabel(total, detail.group.currency, large = true)
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("${detail.expenses.size} expenses",
-                            style = MaterialTheme.typography.labelSmall)
-                        Text("${detail.transfers.count { it.kind == TransferKind.ADVANCE }} advances · ${detail.transfers.count { it.kind == TransferKind.REPAYMENT }} repayments",
-                            style = MaterialTheme.typography.labelSmall, color = Muted)
-                    }
-                }
-            }
+            TourOverview(statement, myStatement) { showMePicker = true }
             Spacer(Modifier.height(5.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 CompactQuickAction("Expense", "+", { onExpense(null) }, Modifier.weight(1f))
@@ -254,6 +252,45 @@ fun GroupScreen(
             }
             }
         }
+    }
+    if (showMePicker) {
+        AlertDialog(
+            onDismissRequest = { showMePicker = false },
+            title = { Text("Who am I in this group?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Select your traveler name. Split remembers it on this phone only.",
+                        color = Muted, style = MaterialTheme.typography.bodySmall)
+                    detail.members.forEach { person ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = myMemberId == person.id,
+                                onClick = {
+                                    myMemberId = person.id
+                                    preferences.edit().putString(identityKey, person.id).apply()
+                                    showMePicker = false
+                                }
+                            )
+                            TextButton(onClick = {
+                                myMemberId = person.id
+                                preferences.edit().putString(identityKey, person.id).apply()
+                                showMePicker = false
+                            }) { Text(person.name) }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showMePicker = false }) { Text("Close") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    myMemberId = null
+                    preferences.edit().remove(identityKey).apply()
+                    showMePicker = false
+                }) { Text("Clear Me") }
+            }
+        )
     }
     if (archiveConfirm) {
         AlertDialog(
