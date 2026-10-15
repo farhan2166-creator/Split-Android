@@ -50,6 +50,7 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
         }
     }
     var error by remember { mutableStateOf<String?>(null) }
+    var step by remember(expenseId) { mutableIntStateOf(0) }
     var confirmDelete by remember { mutableStateOf(false) }
 
     fun initializeInputs(newMode: Mode) {
@@ -71,8 +72,9 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
             }
         },
         bottomBar = {
-            Surface(modifier = Modifier.navigationBarsPadding(), shadowElevation = 5.dp) {
-                Button(onClick = {
+            Column {
+                Surface(shadowElevation = 3.dp) {
+                    Button(onClick = {
                     val amount = Money.parse(amountText)
                     val allocations = if (amount == null || amount <= 0 || selected.isEmpty()) null else computeAllocations(amount, selected.toList(), mode, inputs)
                     val funding = if (amount == null || amount <= 0) null else if (multiplePayers) {
@@ -82,14 +84,17 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                         }.takeIf { parts -> parts.isNotEmpty() && parts.sumOf { it.amountMinor } == amount }
                     } else listOf(Contribution(existing?.id ?: "", payer, amount))
                     when {
-                        title.isBlank() -> error = "Enter a description"
-                        amount == null || amount <= 0 -> error = "Enter a valid amount (up to 2 decimal places)"
-                        selected.isEmpty() -> error = "Choose at least one person to split with"
-                        funding == null -> error = "Amounts paid by participants must add up to the expense total"
-                        allocations == null -> error = when (mode) {
+                        title.isBlank() -> { step = 0; error = "Enter a description" }
+                        amount == null || amount <= 0 -> { step = 0; error = "Enter a valid amount (up to 2 decimal places)" }
+                        selected.isEmpty() -> { step = 1; error = "Choose at least one person to split with" }
+                        funding == null -> { step = 0; error = "Amounts paid by participants must add up to the expense total" }
+                        allocations == null -> {
+                            step = 1
+                            error = when (mode) {
                             Mode.Percent -> "Percentages must add up to exactly 100%"
                             Mode.Exact -> "Exact amounts must add up to the total"
                             else -> "Enter positive shares for everyone selected"
+                            }
                         }
                         else -> {
                             error = null
@@ -101,9 +106,11 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                             )
                         }
                     }
-                }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)) {
-                    Text(if (existing == null) "Save expense" else "Save changes")
+                    }, modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 7.dp)) {
+                        Text(if (existing == null) "Save expense" else "Save changes")
+                    }
                 }
+                SplitBottomTabs(listOf("Details" to "✎", "Split" to "÷"), step) { step = it }
             }
         }
     ) { padding ->
@@ -111,7 +118,7 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            CompactPanel {
+            if (step == 0) CompactPanel {
                 Text("01  ·  EXPENSE DETAILS", color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(6.dp))
@@ -167,7 +174,7 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 1, maxLines = 2)
             }
-            CompactPanel {
+            if (step == 1) CompactPanel {
                 Text("02  ·  SPLIT BETWEEN", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(6.dp))
                 Text("Choose who benefited. The person who paid can be included or excluded.", color = Muted, style = MaterialTheme.typography.bodySmall)
