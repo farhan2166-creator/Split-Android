@@ -478,8 +478,10 @@ fun TextEntryDialog(title: String, label: String, initial: String = "", onDismis
     }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }
 
-private fun categoryEmoji(category: String): String = when (category) {
-    "Food" -> "🍽"; "Transport" -> "🚕"; "Stay" -> "🏠"; "Shopping" -> "🛍"; "Bills" -> "🧾"; "Entertainment" -> "🎟"; else -> "💳"
+internal fun categoryEmoji(category: String): String = when (category) {
+    "Food" -> "🍽"; "Transport" -> "🚕"; "Stay" -> "🛏"
+    "Groceries" -> "🛒"; "Shopping" -> "🛍"; "Bills" -> "🧾"
+    "Entertainment" -> "🎟"; "Healthcare" -> "⚕"; else -> "💳"
 }
 
 private fun date(timestamp: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(timestamp))
