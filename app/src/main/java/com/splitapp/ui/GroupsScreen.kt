@@ -1,15 +1,17 @@
 package com.splitapp.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.splitapp.data.SplitViewModel
 import com.splitapp.model.SplitGroup
@@ -27,80 +29,154 @@ fun GroupsScreen(
         @Suppress("DEPRECATION")
         context.packageManager.getPackageInfo(context.packageName, 0)
     }
-    var showAbout by remember { mutableStateOf(false) }
     var showCreate by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
-    var showArchived by remember { mutableStateOf(false) }
-    val visibleGroups = remember(groups, filter, showArchived) { groups.filter { it.archived == showArchived && (it.name.contains(filter.trim(), ignoreCase = true) || it.currency.contains(filter.trim(), ignoreCase = true)) } }
+    var tab by remember { mutableIntStateOf(0) }
+    val archived = tab == 1
+    val visibleGroups = remember(groups, filter, archived) {
+        groups.filter {
+            it.archived == archived &&
+                (it.name.contains(filter.trim(), ignoreCase = true) ||
+                 it.currency.contains(filter.trim(), ignoreCase = true))
+        }
+    }
     Scaffold(
-        topBar = { AppHeader("Split", "Fair expenses, easy settlements") {
-            TextButton(onClick = { showAbout = true }) { Text("About") }
-        } }
+        topBar = {
+            AppHeader(
+                if (tab == 2) "Your Split" else "Split",
+                when (tab) {
+                    1 -> "Finished groups, safely kept"
+                    2 -> "Offline preferences and data"
+                    else -> "Your shared expenses"
+                }
+            ) {
+                if (tab != 2) TextButton(onClick = { showCreate = true }) { Text("+ New") }
+            }
+        },
+        bottomBar = {
+            SplitBottomTabs(
+                listOf("Groups" to "▦", "Archived" to "◷", "Settings" to "⚙"),
+                tab
+            ) {
+                tab = it
+                filter = ""
+            }
+        }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 14.dp)) {
-            CompactPanel {
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 14.dp)
+        ) {
+            if (tab == 2) {
+                Spacer(Modifier.height(12.dp))
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CompactPanel {
+                        Text("Your data stays on your phone", style = MaterialTheme.typography.titleMedium)
+                        Text("No sign-in, server or email permissions required.",
+                            color = Muted, style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = onExportBackup, Modifier.fillMaxWidth()) {
+                            Text("Export full backup")
+                        }
+                        OutlinedButton(onClick = onImportBackup, Modifier.fillMaxWidth()) {
+                            Text("Restore from backup")
+                        }
+                    }
+                    CompactPanel {
+                        Text("Appearance", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Comfortable in daylight and at night", color = Muted,
+                            style = MaterialTheme.typography.labelSmall)
+                        Spacer(Modifier.height(7.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            AppearanceMode.entries.forEach { choice ->
+                                FilterChip(
+                                    selected = appearance == choice,
+                                    onClick = { onAppearanceChange(choice) },
+                                    label = { Text(choice.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                                )
+                            }
+                        }
+                    }
+                    CompactPanel {
+                        Text("About Split", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(5.dp))
+                        Text("Version ${packageInfo.versionName ?: "Unknown"}")
+                        Text("Build ${packageInfo.longVersionCode} · ${context.packageName}",
+                            color = Muted, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            } else {
+                Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("YOUR SHARED SPACE", style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary)
-                        Text("${groups.count { !it.archived }} active · ${groups.count { it.archived }} archived",
-                            fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text(if (archived) "ARCHIVED GROUPS" else "YOUR GROUPS",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelSmall)
+                        Text("${visibleGroups.size} shown · ${groups.size} total",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold)
                     }
-                    Text("◎", style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary)
+                    if (!archived) {
+                        FilledTonalButton(onClick = { showCreate = true }) { Text("+ Create") }
+                    }
                 }
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                CompactQuickAction("New group", "+", { showCreate = true }, Modifier.weight(1f))
-                CompactQuickAction("Backup", "↥", onExportBackup, Modifier.weight(1f))
-                CompactQuickAction("Restore", "↧", onImportBackup, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = filter, onValueChange = { filter = it },
-                placeholder = { Text("Search groups") }, singleLine = true,
-                leadingIcon = { Text("⌕") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium
-            )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = !showArchived, onClick = { showArchived = false }, label = { Text("Active") })
-                FilterChip(selected = showArchived, onClick = { showArchived = true }, label = { Text("Archived") })
-                Spacer(Modifier.weight(1f))
-                Text("${visibleGroups.size} groups", style = MaterialTheme.typography.labelSmall, color = Muted)
-            }
-            if (visibleGroups.isEmpty()) {
-                EmptyState(
-                    if (groups.isEmpty()) "No groups yet" else "No matching groups",
-                    if (groups.isEmpty()) "Create a group to start splitting expenses." else "Change the filter or search."
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = filter, onValueChange = { filter = it },
+                    placeholder = { Text("Search by group or currency") },
+                    singleLine = true, leadingIcon = { Text("⌕") },
+                    modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium
                 )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    items(visibleGroups, key = { it.id }) { group ->
-                        Surface(
-                            onClick = { onOpen(group.id) },
-                            color = MaterialTheme.colorScheme.surface,
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            shape = MaterialTheme.shapes.medium
-                        ) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                Spacer(Modifier.height(9.dp))
+                if (visibleGroups.isEmpty()) {
+                    EmptyState(
+                        when {
+                            filter.isNotBlank() -> "No matching groups"
+                            archived -> "Nothing archived yet"
+                            else -> "No groups yet"
+                        },
+                        when {
+                            filter.isNotBlank() -> "Try a different search."
+                            archived -> "Finished groups can be archived without losing their history."
+                            else -> "Create your first group to start sharing expenses."
+                        }
+                    )
+                } else {
+                    LazyColumn(
+                        Modifier.weight(1f),
+                        contentPadding = PaddingValues(bottom = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        items(visibleGroups, key = { it.id }) { group ->
+                            Surface(
+                                onClick = { onOpen(group.id) },
+                                color = MaterialTheme.colorScheme.surface,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp, MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                shape = MaterialTheme.shapes.medium
                             ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(group.name, fontWeight = FontWeight.SemiBold,
-                                        style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                                    Text("${group.currency} · ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(group.createdAt))}",
-                                        color = Muted, style = MaterialTheme.typography.labelSmall)
+                                Row(
+                                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(group.name, fontWeight = FontWeight.SemiBold,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(
+                                            "${group.currency} · " +
+                                                DateFormat.getDateInstance(DateFormat.MEDIUM)
+                                                    .format(Date(group.createdAt)),
+                                            color = Muted, style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                    Text("›", style = MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.primary)
                                 }
-                                Text("›", color = MaterialTheme.colorScheme.primary,
-                                    style = MaterialTheme.typography.titleLarge)
                             }
                         }
                     }
@@ -108,34 +184,8 @@ fun GroupsScreen(
             }
         }
     }
-    if (showAbout) AlertDialog(
-        onDismissRequest = { showAbout = false },
-        title = { Text("About Split") },
-        text = {
-            Column {
-                Text("Version: ${packageInfo.versionName ?: "Unknown"}")
-                Text("Build code: ${packageInfo.longVersionCode}")
-                Text("Package: ${context.packageName}")
-                Text("Offline expense sharing", color = Muted)
-                Spacer(Modifier.height(16.dp))
-                Text("Appearance", style = MaterialTheme.typography.titleMedium)
-                Text("Choose the look that feels comfortable to you.", color = Muted,
-                    style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    AppearanceMode.entries.forEach { option ->
-                        FilterChip(
-                            selected = appearance == option,
-                            onClick = { onAppearanceChange(option) },
-                            label = { Text(option.name.lowercase().replaceFirstChar { it.uppercase() }) }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { showAbout = false }) { Text("Close") } }
-    )
-    if (showCreate) CreateGroupDialog(onDismiss = { showCreate = false }) { name, currency, firstMember ->
+    if (showCreate) CreateGroupDialog(onDismiss = { showCreate = false }) {
+        name, currency, firstMember ->
         vm.createGroup(name, currency, firstMember) { id ->
             showCreate = false
             onOpen(id)
