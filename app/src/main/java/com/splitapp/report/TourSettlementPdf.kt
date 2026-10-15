@@ -15,7 +15,7 @@ object TourSettlementPdf {
     private const val HEIGHT = 595
     private const val GREEN = -0xe9a99e
     fun write(stream: OutputStream, report: TourSettlement) {
-        require(report.members.size <= 12) { "One-page settlement supports up to 12 travelers" }
+        require(report.members.size <= 8) { "One-page settlement supports up to 8 travelers" }
         val pdf = PdfDocument()
         try {
             val page = pdf.startPage(PdfDocument.PageInfo.Builder(WIDTH, HEIGHT, 1).create())

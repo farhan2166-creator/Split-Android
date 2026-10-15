@@ -41,6 +41,19 @@ class BackupCodecTest {
         assertNull(decoded.groups.single().group.monthlyBudgetMinor)
     }
 
+    @Test fun transferKindsSurviveBackupRoundTrip() {
+        val advance = Transfer("advance", "g", "a", "b", 1000L, "Cash before trip",
+            5L, TransferKind.ADVANCE)
+        val original = detail.copy(transfers = detail.transfers + advance)
+        val restored = BackupCodec.decode(BackupCodec.encode(BackupSnapshot(listOf(original))))
+        assertEquals(TransferKind.ADVANCE,
+            restored.groups.single().transfers.first { it.id == "advance" }.kind)
+        assertEquals(TransferKind.REPAYMENT,
+            restored.groups.single().transfers.first { it.id == "t" }.kind)
+        assertEquals(SplitMath.balances(original),
+            SplitMath.balances(restored.groups.single()))
+    }
+
     @Test fun emptyBackupRoundTrips() {
         assertEquals(BackupSnapshot(emptyList()),
             BackupCodec.decode(BackupCodec.encode(BackupSnapshot(emptyList()))))

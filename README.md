@@ -134,3 +134,13 @@ Large forms are separated into deliberately short screens:
 The purpose is to avoid scrolling through entire *screens*. Long group transaction histories, unusually large member lists, keyboard-covered content and enlarged accessibility text may still require scrolling; removing that scrolling would hide essential information.
 
 This release does not add Gmail permissions, cloud sync, an account system or invitation links. The app remains offline-first: group membership exists only in the current on-device ledger and is transferable via the existing validated full backup/restore process.
+
+## Tour expenses and one-page settlement (v1.6)
+
+Split now fits a 2–4-person tour across several cities, lasting a week or longer. Create one local group for the entire journey. Any participant can pay a bill; **Details → Payers → Split** lets you divide each expense among only the people who consumed it, including one-person purchases or a split shared by a subset. Multiple travelers may fund a single bill.
+
+**Cash movements:** In **Repay**, choose **Advance** for cash handed to a traveler before or during the trip, or **Repayment** when settling part or all of a balance. Cash advances and repayments **do not increase tour expenses**; both correctly change the creditor/debtor balances. Never record a cash advance again as a separate expense payment unless the recipient actually uses that cash to pay a real bill; the resulting ledger will distinguish money given from money spent.
+
+The group action **Settle PDF** creates an offline, landscape A4 **single-page tour settlement** listing each traveler's actual bills paid, own expense share, advances given/received, repayments sent/received, final net balance, and the recommended final transfers. A full settlement is explicitly marked "FULLY SETTLED". The detailed multipage PDF ledger remains available under Insights for transaction-by-transaction evidence. The one-page layout supports up to eight travelers, optimized for 2–4.
+
+Transfer types are preserved in full backup/restore files. Existing transfers and older backups default to the prior **Repayment** category; a safe SQLite v5 migration preserves existing records. All balances are checked against the original SplitMath ledger.
