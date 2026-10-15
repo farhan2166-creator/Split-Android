@@ -9,14 +9,14 @@ import com.splitapp.model.*
 import java.util.UUID
 
 /** On-device source of truth. Every ledger write that spans tables is transactional. */
-class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db", null, 3) {
+class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db", null, 4) {
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
         db.setForeignKeyConstraintsEnabled(true)
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL("""CREATE TABLE groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, currency TEXT NOT NULL, created_at INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0)""")
+        db.execSQL("""CREATE TABLE groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, currency TEXT NOT NULL, created_at INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0, monthly_budget_minor INTEGER CHECK(monthly_budget_minor > 0))""")
         db.execSQL("""CREATE TABLE members (id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE, name TEXT NOT NULL COLLATE NOCASE, UNIQUE(group_id, name))""")
         db.execSQL("""CREATE TABLE expenses (id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE, title TEXT NOT NULL, category TEXT NOT NULL, amount_minor INTEGER NOT NULL CHECK(amount_minor > 0), paid_by TEXT NOT NULL REFERENCES members(id), note TEXT NOT NULL, timestamp INTEGER NOT NULL)""")
         db.execSQL("""CREATE TABLE allocations (expense_id TEXT NOT NULL REFERENCES expenses(id) ON DELETE CASCADE, member_id TEXT NOT NULL REFERENCES members(id), amount_minor INTEGER NOT NULL CHECK(amount_minor >= 0), PRIMARY KEY (expense_id, member_id))""")
@@ -35,15 +35,18 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
         if (oldVersion < 3) {
             db.execSQL("ALTER TABLE groups ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
         }
+        if (oldVersion < 4) {
+            db.execSQL("ALTER TABLE groups ADD COLUMN monthly_budget_minor INTEGER CHECK(monthly_budget_minor > 0)")
+        }
     }
 
     fun groups(): List<SplitGroup> = readableDatabase.rawQuery(
-        "SELECT id, name, currency, created_at, archived FROM groups ORDER BY created_at DESC", null
+        "SELECT id, name, currency, created_at, archived, monthly_budget_minor FROM groups ORDER BY created_at DESC", null
     ).use { c -> buildList { while (c.moveToNext()) add(c.asGroup()) } }
 
     fun group(id: String): GroupDetail? {
         val db = readableDatabase
-        val group = db.rawQuery("SELECT id, name, currency, created_at, archived FROM groups WHERE id=?", arrayOf(id))
+        val group = db.rawQuery("SELECT id, name, currency, created_at, archived, monthly_budget_minor FROM groups WHERE id=?", arrayOf(id))
             .use { c -> if (c.moveToFirst()) c.asGroup() else null } ?: return null
         val members = db.rawQuery("SELECT id, group_id, name FROM members WHERE group_id=? ORDER BY name COLLATE NOCASE", arrayOf(id))
             .use { c -> buildList { while (c.moveToNext()) add(Member(c.getString(0), c.getString(1), c.getString(2))) } }
@@ -114,6 +117,9 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
                     "id" to g.id, "name" to g.name, "currency" to g.currency,
                     "created_at" to g.createdAt, "archived" to if (g.archived) 1 else 0
                 ))
+                if (g.monthlyBudgetMinor != null) {
+                    db.update("groups", cv("monthly_budget_minor" to g.monthlyBudgetMinor), "id=?", arrayOf(g.id))
+                }
                 detail.members.forEach { m ->
                     db.insertOrThrow("members", null, cv(
                         "id" to m.id, "group_id" to m.groupId, "name" to m.name
@@ -187,6 +193,12 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
         check(writableDatabase.update("groups", cv("archived" to if (archived) 1 else 0), "id=?", arrayOf(groupId)) == 1)
     }
 
+    fun setMonthlyBudget(groupId: String, amountMinor: Long?) {
+        require(amountMinor == null || amountMinor > 0L)
+        val db = writableDatabase
+        db.execSQL("UPDATE groups SET monthly_budget_minor=? WHERE id=?", arrayOf(amountMinor, groupId))
+    }
+
     fun renameGroup(groupId: String, name: String) {
         require(name.isNotBlank())
         check(writableDatabase.update("groups", cv("name" to name.trim()), "id=?", arrayOf(groupId)) == 1)
@@ -242,7 +254,7 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
         check(writableDatabase.delete("transfers", "id=? AND group_id=?", arrayOf(transferId, groupId)) == 1)
     }
 
-    private fun Cursor.asGroup() = SplitGroup(getString(0), getString(1), getString(2), getLong(3), getInt(4) != 0)
+    private fun Cursor.asGroup() = SplitGroup(getString(0), getString(1), getString(2), getLong(3), getInt(4) != 0, if (isNull(5)) null else getLong(5))
 
     private fun cv(vararg args: Pair<String, Any>): ContentValues = ContentValues().apply {
         args.forEach { (key, value) -> when (value) {
