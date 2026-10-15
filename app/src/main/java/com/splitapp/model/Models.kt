@@ -5,7 +5,8 @@ data class SplitGroup(
     val name: String,
     val currency: String,
     val createdAt: Long,
-    val archived: Boolean = false
+    val archived: Boolean = false,
+    val monthlyBudgetMinor: Long? = null
 )
 
 data class Member(val id: String, val groupId: String, val name: String)
