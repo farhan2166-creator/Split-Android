@@ -38,18 +38,27 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [[ -n "$KEYSTORE_BASE64" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "All four release signing secrets are configured." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Release signing is not yet configured. Automatic release build is skipped; configure the four Android signing secrets." >> "$GITHUB_STEP_SUMMARY"
+          missing=()
+          for key in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!key}" ]]; then missing+=("$key"); fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error title=Release APK not built::Missing signing credentials: ${missing[*]}"
+            {
+              echo "### Signed release APK NOT built"
+              echo "Missing repository Actions secrets: ${missing[*]}"
+              echo "Use scripts/Configure-ReleaseSigning.ps1 and retry this workflow."
+              echo "The debug APK remains available under GitHub Releases."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "Release signing is configured." >> "$GITHUB_STEP_SUMMARY"
 
   release-apk:
     name: Build signed release APK
     needs: signing-check
-    if: github.ref == 'refs/heads/main' && (needs.signing-check.outputs.ready == 'true' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/main' && needs.signing-check.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
@@ -153,36 +162,57 @@ jobs:
           retention-days: 90
 
   publish:
-    name: Publish GitHub Release
+    name: Publish direct signed APK
     needs: release-apk
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
+    if: github.ref == 'refs/heads/main' && needs.release-apk.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - name: Download verified release APK
+      - name: Download verified signed APK
         uses: actions/download-artifact@v6
         with:
           name: Split-Android-release-${{ github.run_number }}-a${{ github.run_attempt }}
           path: dist
 
-      - name: Verify checksum
+      - name: Verify APK checksum
         shell: bash
         run: |
           set -euo pipefail
           (cd dist && sha256sum --check SHA256SUMS.txt)
+          shopt -s nullglob
+          files=(dist/*-release.apk)
+          test "${#files[@]}" -eq 1
 
-      - name: Publish downloadable signed APK
+      - name: Publish signed APK download
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.release-apk.outputs.version_name }}
           RELEASE_TITLE: ${{ inputs.release_title }}
+          PROMOTE: ${{ inputs.publish_release }}
         run: |
           set -euo pipefail
-          tag="split-v${VERSION}-run${GITHUB_RUN_NUMBER}-a${GITHUB_RUN_ATTEMPT}"
-          title="${RELEASE_TITLE:-Split Android v$VERSION}"
-          gh release create "$tag" dist/*-release.apk dist/SHA256SUMS.txt \
-            --target "$GITHUB_SHA" --title "$title" \
-            --notes "Signed Split Android APK for com.mythos.split (v$VERSION). SHA256 checksum included."
+          shopt -s nullglob
+          files=(dist/*-release.apk)
+          test "${#files[@]}" -eq 1
+          apk="${files[0]}"
+          filename="${apk##*/}"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$PROMOTE" == "true" ]]; then
+            tag="split-v${VERSION}-run${GITHUB_RUN_NUMBER}-a${GITHUB_RUN_ATTEMPT}"
+            title="${RELEASE_TITLE:-Split Android v$VERSION}"
+            gh release create "$tag" "$apk" dist/SHA256SUMS.txt \
+              --target "$GITHUB_SHA" --title "$title" \
+              --notes "Production-signed Split Android APK for com.mythos.split ($VERSION). SHA256 checksum included."
+          else
+            tag="split-signed-run${GITHUB_RUN_NUMBER}-attempt${GITHUB_RUN_ATTEMPT}"
+            gh release create "$tag" "$apk" dist/SHA256SUMS.txt \
+              --target "$GITHUB_SHA" --title "Split Android Signed APK · build ${GITHUB_RUN_NUMBER}" \
+              --prerelease \
+              --notes "Verified production-signed APK for com.mythos.split ($VERSION). SHA256 checksum included."
+          fi
+          echo "### Direct signed APK download" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download **$filename**](https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$filename)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Keep the original private signing key securely backed up." >> "$GITHUB_STEP_SUMMARY"
