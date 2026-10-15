@@ -49,49 +49,41 @@ fun GroupScreen(
                 }
             }
         },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { if (tab == 1) onPayment(null, null, null) else onExpense(null) },
-                content = { Text(if (tab == 1) "+ Payment" else "+ Expense") }
-            )
+        bottomBar = {
+            SplitBottomTabs(
+                listOf("Activity" to "▤", "Balances" to "⇄", "Insights" to "◉"),
+                tab
+            ) { tab = it }
         }
     ) { padding ->
-        LazyColumn(
-            Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(bottom = 78.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp)
-        ) {
-            item {
-                CompactPanel {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("TOTAL SHARED", style = MaterialTheme.typography.labelSmall, color = Muted)
-                            MoneyLabel(total, detail.group.currency, large = true)
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("${detail.expenses.size} expenses", style = MaterialTheme.typography.labelSmall)
-                            Text("${detail.transfers.size} repayments",
-                                style = MaterialTheme.typography.labelSmall, color = Muted)
-                        }
+        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp)) {
+            CompactPanel {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("TOTAL SHARED", style = MaterialTheme.typography.labelSmall,
+                            color = Muted)
+                        MoneyLabel(total, detail.group.currency, large = true)
                     }
-                }
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    CompactQuickAction("Expense", "+", { onExpense(null) }, Modifier.weight(1f))
-                    CompactQuickAction("Repay", "↗", { onPayment(null, null, null) }, Modifier.weight(1f))
-                    CompactQuickAction("PDF", "▤", onLedger, Modifier.weight(1f))
-                }
-                Spacer(Modifier.height(4.dp))
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf("Activity", "Balances", "Insights").forEachIndexed { index, label ->
-                        SegmentedButton(
-                            selected = tab == index,
-                            onClick = { tab = index },
-                            shape = SegmentedButtonDefaults.itemShape(index, 3)
-                        ) { Text(label) }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("${detail.expenses.size} expenses",
+                            style = MaterialTheme.typography.labelSmall)
+                        Text("${detail.transfers.size} repayments",
+                            style = MaterialTheme.typography.labelSmall, color = Muted)
                     }
                 }
             }
+            Spacer(Modifier.height(5.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                CompactQuickAction("Expense", "+", { onExpense(null) }, Modifier.weight(1f))
+                CompactQuickAction("Repay", "↗", { onPayment(null, null, null) }, Modifier.weight(1f))
+                CompactQuickAction("PDF", "▤", onLedger, Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(5.dp))
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
             when (tab) {
                 0 -> {
                     item {
@@ -256,6 +248,7 @@ fun GroupScreen(
                         }
                     }
                 }
+            }
             }
         }
     }
