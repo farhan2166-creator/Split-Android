@@ -281,3 +281,38 @@ fun CompactPanel(
         Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), content = content)
     }
 }
+
+/** Persistent navigation stays on-screen. Only long histories and member lists scroll. */
+@Composable
+fun SplitBottomTabs(
+    tabs: List<Pair<String, String>>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit
+) {
+    NavigationBar(
+        modifier = Modifier.navigationBarsPadding(),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp
+    ) {
+        tabs.forEachIndexed { index, (title, symbol) ->
+            NavigationBarItem(
+                selected = selectedIndex == index,
+                onClick = { onSelect(index) },
+                icon = {
+                    Text(
+                        symbol,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (selectedIndex == index)
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                label = { Text(title, maxLines = 1) },
+                alwaysShowLabel = true,
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            )
+        }
+    }
+}
