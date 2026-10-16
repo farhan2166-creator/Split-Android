@@ -31,8 +31,17 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
     var note by remember(expenseId) { mutableStateOf(existing?.note.orEmpty()) }
     var expenseDate by remember(expenseId) { mutableLongStateOf(existing?.timestamp ?: System.currentTimeMillis()) }
     val context = LocalContext.current
+    val localMe = remember(context, detail.group.id) {
+        context.getSharedPreferences(
+            "split_group_identity", android.content.Context.MODE_PRIVATE
+        ).getString("member_${detail.group.id}", null)
+    }
     var category by remember(expenseId) { mutableStateOf(existing?.category ?: "Food") }
-    var payer by remember(expenseId) { mutableStateOf(existing?.paidBy ?: detail.members.first().id) }
+    var payer by remember(expenseId) {
+        mutableStateOf(existing?.paidBy
+            ?: detail.members.firstOrNull { it.id == localMe }?.id
+            ?: detail.members.first().id)
+    }
     var multiplePayers by remember(expenseId) { mutableStateOf(detail.contributions.count { it.expenseId == expenseId } > 1) }
     val payerInputs = remember(expenseId) {
         mutableStateMapOf<String, String>().apply {
@@ -130,7 +139,8 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                                 val id = draftId
                                 vm.saveExpense(
                                     Expense(id, detail.group.id, title.trim(), category,
-                                        amount, payer, note.trim(), expenseDate),
+                                        amount, if (multiplePayers) funding.first().memberId else payer,
+                                        note.trim(), expenseDate),
                                     allocations.map { Allocation(id, it.key, it.value) },
                                     onBack,
                                     funding.map { it.copy(expenseId = id) },

@@ -45,6 +45,8 @@ fun GroupScreen(
     var categoryFilter by remember(detail.group.id) { mutableStateOf("All") }
     var activityKind by remember(detail.group.id) { mutableStateOf(ActivityKind.All) }
     var deleteTransfer by remember { mutableStateOf<String?>(null) }
+    var duplicateExpenseId by remember { mutableStateOf<String?>(null) }
+    var duplicating by remember { mutableStateOf(false) }
     val balances = remember(detail) { SplitMath.balances(detail) }
     val settlements = remember(balances) { SplitMath.settle(balances) }
     val names = detail.members.associate { it.id to it.name }
@@ -221,16 +223,10 @@ fun GroupScreen(
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
                                         MoneyLabel(entry.amountMinor, detail.group.currency)
-                                        TextButton(onClick = {
-                                            val copiedId = UUID.randomUUID().toString()
-                                            val copies = detail.allocations.filter { it.expenseId == entry.id }
-                                                .map { it.copy(expenseId = copiedId) }
-                                            val funding = detail.contributions.filter { it.expenseId == entry.id }
-                                                .map { it.copy(expenseId = copiedId) }
-                                            vm.saveExpense(entry.copy(id = copiedId, timestamp = System.currentTimeMillis()), copies, {
-                                                vm.showMessage("Expense copied. You can edit it from the activity list.")
-                                            }, funding.ifEmpty { listOf(Contribution(copiedId, entry.paidBy, entry.amountMinor)) })
-                                        }, contentPadding = PaddingValues(0.dp)) { Text("Duplicate") }
+                                        TextButton(
+                                            onClick = { duplicateExpenseId = entry.id },
+                                            contentPadding = PaddingValues(0.dp)
+                                        ) { Text("Duplicate") }
                                     }
                                 }
                             }
@@ -510,6 +506,49 @@ fun GroupScreen(
     if (rename) {
         TextEntryDialog("Rename group", "Group name", initial = detail.group.name, onDismiss = { rename = false }) { name ->
             vm.renameGroup(detail.group.id, name) { rename = false }
+        }
+    }
+    duplicateExpenseId?.let { id ->
+        val source = detail.expenses.firstOrNull { it.id == id }
+        if (source != null) {
+            AlertDialog(
+                onDismissRequest = { if (!duplicating) duplicateExpenseId = null },
+                title = { Text("Duplicate expense?") },
+                text = {
+                    Text("Add another ${source.title} for ${detail.group.currency} " +
+                        "${Money.format(source.amountMinor)} with the same payer(s) and shares? " +
+                        "The copy will use today's date.")
+                },
+                confirmButton = {
+                    TextButton(enabled = !duplicating, onClick = {
+                        duplicating = true
+                        val copyId = UUID.randomUUID().toString()
+                        val copiedShares = detail.allocations.filter { it.expenseId == source.id }
+                            .map { it.copy(expenseId = copyId) }
+                        val paid = detail.contributions.filter { it.expenseId == source.id }
+                            .map { it.copy(expenseId = copyId) }
+                        vm.saveExpense(
+                            source.copy(id = copyId, timestamp = System.currentTimeMillis()),
+                            copiedShares,
+                            {
+                                duplicating = false
+                                duplicateExpenseId = null
+                                vm.showMessage("Expense duplicated. Tap it to make changes.")
+                            },
+                            paid.ifEmpty {
+                                listOf(Contribution(copyId, source.paidBy, source.amountMinor))
+                            },
+                            onError = { duplicating = false }
+                        )
+                    }) { Text(if (duplicating) "Copying..." else "Duplicate") }
+                },
+                dismissButton = {
+                    TextButton(enabled = !duplicating,
+                        onClick = { duplicateExpenseId = null }) { Text("Cancel") }
+                }
+            )
+        } else {
+            LaunchedEffect(id) { duplicateExpenseId = null }
         }
     }
     deleteTransfer?.let { id ->

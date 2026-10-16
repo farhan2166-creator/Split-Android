@@ -32,7 +32,13 @@ fun PaymentEditor(
 ) {
     val existing = detail.transfers.firstOrNull { it.id == transferId }
     val context = LocalContext.current
-    val first = detail.members.firstOrNull()?.id.orEmpty()
+    val localMe = remember(context, detail.group.id) {
+        context.getSharedPreferences(
+            "split_group_identity", android.content.Context.MODE_PRIVATE
+        ).getString("member_${detail.group.id}", null)
+    }
+    val first = detail.members.firstOrNull { it.id == localMe }?.id
+        ?: detail.members.firstOrNull()?.id.orEmpty()
     var from by remember(transferId) {
         mutableStateOf(existing?.fromMember ?: initialFrom ?: first)
     }
