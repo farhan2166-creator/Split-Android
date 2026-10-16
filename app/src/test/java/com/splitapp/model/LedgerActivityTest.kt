@@ -41,6 +41,7 @@ class LedgerActivityTest {
         assertEquals(listOf("e1"),
             LedgerActivity.filter(detail, ActivityKind.All, category = "Stay")
                 .filterIsInstance<Expense>().map { it.id })
+        assertEquals(1, LedgerActivity.filter(detail, ActivityKind.All, category = "Stay").size)
     }
 
     @Test fun textMatchesNotesPayersParticipantsAndTransferKinds() {

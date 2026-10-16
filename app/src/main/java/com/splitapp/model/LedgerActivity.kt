@@ -33,7 +33,7 @@ object LedgerActivity {
                         })
             }
         } else emptyList()
-        val transfers = if (kind != ActivityKind.Expenses) {
+        val transfers = if (kind != ActivityKind.Expenses && category == "All") {
             detail.transfers.filter { transfer ->
                 (kind == ActivityKind.All ||
                     (kind == ActivityKind.Advances && transfer.kind == TransferKind.ADVANCE) ||
