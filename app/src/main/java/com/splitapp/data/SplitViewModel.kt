@@ -61,9 +61,18 @@ class SplitViewModel(application: Application) : AndroidViewModel(application) {
     fun setArchived(groupId: String, archived: Boolean, done: () -> Unit = {}) = perform({ database.setArchived(groupId, archived) }, { done() })
     fun setMonthlyBudget(groupId: String, amountMinor: Long?, done: () -> Unit = {}) = perform({ database.setMonthlyBudget(groupId, amountMinor) }, { done() })
     fun renameGroup(groupId: String, name: String, done: () -> Unit = {}) = perform({ database.renameGroup(groupId, name) }, { done() })
-    fun saveExpense(expense: Expense, shares: List<Allocation>, done: () -> Unit, contributions: List<Contribution> = listOf(Contribution(expense.id, expense.paidBy, expense.amountMinor))) = perform({ database.saveExpense(expense, shares, contributions) }, { done() })
+    fun saveExpense(
+        expense: Expense,
+        shares: List<Allocation>,
+        done: () -> Unit,
+        contributions: List<Contribution> = listOf(Contribution(expense.id, expense.paidBy, expense.amountMinor)),
+        onError: () -> Unit = {}
+    ) = perform({ database.saveExpense(expense, shares, contributions) }, { done() }, onError)
     fun deleteExpense(groupId: String, expenseId: String, done: () -> Unit) = perform({ database.deleteExpense(groupId, expenseId) }, { done() })
-    fun addTransfer(transfer: Transfer, done: () -> Unit) = perform({ database.addTransfer(transfer) }, { done() })
+    fun addTransfer(transfer: Transfer, done: () -> Unit) =
+        perform({ database.addTransfer(transfer) }, { done() })
+    fun saveTransfer(transfer: Transfer, done: () -> Unit, onError: () -> Unit = {}) =
+        perform({ database.saveTransfer(transfer) }, { done() }, onError)
     fun deleteTransfer(groupId: String, transferId: String) = perform({ database.deleteTransfer(groupId, transferId) }, {})
 
     fun exportBackup(done: (String) -> Unit) {
@@ -100,13 +109,14 @@ class SplitViewModel(application: Application) : AndroidViewModel(application) {
         })
     }
 
-    private fun <T> perform(action: () -> T, done: (T) -> Unit) {
+    private fun <T> perform(action: () -> T, done: (T) -> Unit, onError: () -> Unit = {}) {
         viewModelScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) { action() }
                 done(result)
                 refresh()
             } catch (e: Exception) {
+                onError()
                 _message.value = when {
                     e.message?.contains("UNIQUE constraint", ignoreCase = true) == true -> "This participant already exists"
                     else -> e.message ?: "Unable to save changes"

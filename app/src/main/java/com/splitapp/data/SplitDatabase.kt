@@ -253,6 +253,42 @@ class SplitDatabase(context: Context) : SQLiteOpenHelper(context, "split_v1.db",
         } finally { db.endTransaction() }
     }
 
+    /**
+     * Save or correct an existing cash movement without deleting/recreating it.
+     * Stable transfer IDs keep backups and audit history consistent.
+     */
+    fun saveTransfer(transfer: Transfer) {
+        require(transfer.amountMinor > 0L && transfer.fromMember != transfer.toMember)
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val memberIds = db.rawQuery(
+                "SELECT id FROM members WHERE group_id=?", arrayOf(transfer.groupId)
+            ).use { c -> buildSet { while (c.moveToNext()) add(c.getString(0)) } }
+            require(transfer.fromMember in memberIds && transfer.toMember in memberIds) {
+                "Choose valid travelers from this group"
+            }
+            val values = cv(
+                "id" to transfer.id, "group_id" to transfer.groupId,
+                "from_member" to transfer.fromMember, "to_member" to transfer.toMember,
+                "amount_minor" to transfer.amountMinor, "note" to transfer.note.trim(),
+                "timestamp" to transfer.timestamp, "kind" to transfer.kind.name
+            )
+            val updated = db.update(
+                "transfers", values, "id=? AND group_id=?", arrayOf(transfer.id, transfer.groupId)
+            )
+            if (updated == 0) {
+                // Never reassign an existing transfer ID to another group.
+                val exists = db.rawQuery(
+                    "SELECT id FROM transfers WHERE id=?", arrayOf(transfer.id)
+                ).use { it.moveToFirst() }
+                require(!exists) { "Transfer belongs to a different group" }
+                db.insertOrThrow("transfers", null, values)
+            }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
     fun deleteTransfer(groupId: String, transferId: String) {
         check(writableDatabase.delete("transfers", "id=? AND group_id=?", arrayOf(transferId, groupId)) == 1)
     }
