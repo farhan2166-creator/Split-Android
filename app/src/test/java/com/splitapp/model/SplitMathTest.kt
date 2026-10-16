@@ -68,6 +68,33 @@ class SplitMathTest {
             listOf(Contribution("e", "a", 5000), Contribution("e", "b", 6000))))
     }
 
+    @Test fun correctingCashMovementRecalculatesBalancesWithoutChangingExpenses() {
+        val e = Expense("e", "g", "Taxi", "Transport", 12000L, "a", "", 15L)
+        val shares = listOf(
+            Allocation("e", "a", 4000L),
+            Allocation("e", "b", 4000L),
+            Allocation("e", "c", 4000L)
+        )
+        val original = Transfer("t", "g", "b", "a", 500L,
+            "Partial settlement", 18L, TransferKind.REPAYMENT)
+        val before = GroupDetail(group, people, listOf(e), shares, listOf(original))
+        assertEquals(mapOf("a" to 7500L, "b" to -3500L, "c" to -4000L),
+            SplitMath.balances(before))
+
+        val corrected = before.copy(transfers = listOf(original.copy(
+            amountMinor = 1500L, note = "Corrected", timestamp = 19L
+        )))
+        assertEquals(mapOf("a" to 6500L, "b" to -2500L, "c" to -4000L),
+            SplitMath.balances(corrected))
+        assertEquals(before.expenses.sumOf { it.amountMinor },
+            corrected.expenses.sumOf { it.amountMinor })
+
+        val advance = corrected.copy(transfers = listOf(original.copy(
+            amountMinor = 1500L, kind = TransferKind.ADVANCE
+        )))
+        assertEquals(SplitMath.balances(corrected), SplitMath.balances(advance))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun ledgerRejectsMismatchedShares() {
         val e = Expense("e", "g", "Dinner", "Food", 100, "a", "", 0)

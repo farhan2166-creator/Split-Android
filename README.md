@@ -193,3 +193,17 @@ Tour summary cards **no longer appear above every group tab**. The group bottom 
 The one-page landscape tour settlement PDF includes the exact same **Total Expenses, My Expenses, Cash Received, Outstanding** figures (with To pay / To collect / Fully settled direction), clearly identifying the selected **Me** traveler. Below them it retains every traveler's bills paid, own share, advances, repayments, balances, and recommended final settlements. When Me is not selected or is no longer a participant, personal values are marked **N/A**; the tour total remains accurate. Cash movements are not counted as expenses.
 
 UI and PDF figures share one tested accounting function, `TourSettlement.figuresFor(memberId)`, so personal numbers cannot diverge between the app and the printout. Previous group tab indices are preserved for existing users. No data migration, backend, receipt photos, or account permissions are needed.
+
+## Ledger productivity update (v1.10)
+
+This update improves the **existing offline expense-sharing workflow**, without new accounts, network permissions, or database schema changes.
+
+- **Expense editing:** changes to the selected travelers no longer erase the other people's manually entered parts, percentages or exact amounts. Added travelers receive a sensible initial value instead of silently redistributing existing values. Exact and percentage splits display a live assigned-total check.
+- **Payers:** show a live total of the cash each person contributed, with a one-tap way to assign any unpaid difference to the current payer. The payer defaults to the device's selected **Me** traveler for new expenses.
+- **Money entry:** properly grouped amounts like `1,234.50` are accepted; malformed grouping and excess decimal places are rejected.
+- **Cash movements:** tap any advance or repayment in Activity to **edit** its amount, direction, date, type, or note. Corrections retain the same record ID and recalculate balances; they do not create extra expenses.
+- **Activity:** searchable filter chips distinguish All, Expenses, Advances and Repayments. Search also recognizes notes, split participants, and people who funded multi-payer expenses, with a visible result count.
+- **Safety:** new expenses and cash movements disable their Save button while the database write is in progress. Duplicate expense now asks for confirmation and preserves the payer, selected shares, and notes.
+- **Privacy:** all financial data stays on this device. The existing local backup, PDF statement and signing setup remain intact; backup preview correctly calls advances and repayments **cash movements**.
+
+New JVM regression tests cover custom splits, exact percentage totals, activity search, grouped numeric input, and correction of partial repayments. The four summary cards remain **only in Overview and the one-page settlement PDF**.

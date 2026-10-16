@@ -26,6 +26,7 @@ fun GroupScreen(
     onBack: () -> Unit,
     onExpense: (String?) -> Unit,
     onPayment: (String?, String?, Long?) -> Unit,
+    onEditTransfer: (String) -> Unit,
     onLedger: () -> Unit,
     onTourStatement: (String?) -> Unit,
     onShare: (String, String) -> Unit,
@@ -42,7 +43,10 @@ fun GroupScreen(
     var searchExpanded by remember(detail.group.id) { mutableStateOf(false) }
     var search by remember(detail.group.id) { mutableStateOf("") }
     var categoryFilter by remember(detail.group.id) { mutableStateOf("All") }
+    var activityKind by remember(detail.group.id) { mutableStateOf(ActivityKind.All) }
     var deleteTransfer by remember { mutableStateOf<String?>(null) }
+    var duplicateExpenseId by remember { mutableStateOf<String?>(null) }
+    var duplicating by remember { mutableStateOf(false) }
     val balances = remember(detail) { SplitMath.balances(detail) }
     val settlements = remember(balances) { SplitMath.settle(balances) }
     val names = detail.members.associate { it.id to it.name }
@@ -58,6 +62,9 @@ fun GroupScreen(
     var showMePicker by remember(detail.group.id) { mutableStateOf(false) }
     val statement = remember(detail) { TourSettlementBuilder.build(detail) }
     val myStatement = statement.members.firstOrNull { it.member.id == myMemberId }
+    val activity = remember(detail, activityKind, search, categoryFilter) {
+        ActivitySearch.filter(detail, activityKind, search, categoryFilter)
+    }
     Scaffold(
         topBar = {
             AppHeader(detail.group.name, "${detail.members.size} travelers · ${detail.group.currency}", onBack) {
@@ -136,6 +143,26 @@ fun GroupScreen(
                                 Text("${detail.members.size} travelers  ›")
                             }
                         }
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(
+                                androidx.compose.foundation.rememberScrollState()
+                            ),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            ActivityKind.entries.forEach { kind ->
+                                FilterChip(
+                                    selected = activityKind == kind,
+                                    onClick = {
+                                        activityKind = kind
+                                        if (kind == ActivityKind.Advances ||
+                                            kind == ActivityKind.Repayments) categoryFilter = "All"
+                                    },
+                                    label = { Text(kind.label) }
+                                )
+                            }
+                        }
+                        Text("${activity.size} matching transaction(s)",
+                            color = Muted, style = MaterialTheme.typography.labelSmall)
                         if (searchExpanded) {
                             OutlinedTextField(
                                 value = search, onValueChange = { search = it },
@@ -146,23 +173,20 @@ fun GroupScreen(
                                     TextButton(onClick = { search = ""; categoryFilter = "All"; searchExpanded = false }) { Text("✕") }
                                 }
                             )
-                            Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                (listOf("All") + detail.expenses.map { it.category }.distinct()).forEach { value ->
-                                    FilterChip(selected = categoryFilter == value,
-                                        onClick = { categoryFilter = value }, label = { Text(value) })
+                            if (activityKind == ActivityKind.All || activityKind == ActivityKind.Expenses) {
+                                Row(
+                                    Modifier.fillMaxWidth().horizontalScroll(
+                                        androidx.compose.foundation.rememberScrollState()
+                                    ),
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    (listOf("All") + detail.expenses.map { it.category }.distinct()).forEach { value ->
+                                        FilterChip(selected = categoryFilter == value,
+                                            onClick = { categoryFilter = value }, label = { Text(value) })
+                                    }
                                 }
                             }
                         }
-                    }
-                    val activity: List<Any> = (detail.expenses.filter { expense ->
-                        (categoryFilter == "All" || expense.category == categoryFilter) &&
-                        (search.isBlank() || expense.title.contains(search, true) || expense.category.contains(search, true) || names[expense.paidBy].orEmpty().contains(search, true) || expense.note.contains(search, true))
-                    } + detail.transfers.filter { transfer ->
-                        categoryFilter == "All" && (search.isBlank() ||
-                        (if (transfer.kind == TransferKind.ADVANCE) "cash advance" else "repayment").contains(search, true) || names[transfer.fromMember].orEmpty().contains(search, true) || names[transfer.toMember].orEmpty().contains(search, true) || transfer.note.contains(search, true))
-                    }).sortedByDescending {
-                        when (it) { is Expense -> it.timestamp; is Transfer -> it.timestamp; else -> 0L }
                     }
                     if (activity.isEmpty()) item { EmptyState(if (detail.expenses.isEmpty() && detail.transfers.isEmpty()) "No transactions yet" else "No matching activity", if (detail.expenses.isEmpty() && detail.transfers.isEmpty()) "Add an expense such as dinner, tickets or rent." else "Clear the search or change the category.") }
                     var lastDay: String? = null
@@ -199,20 +223,14 @@ fun GroupScreen(
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
                                         MoneyLabel(entry.amountMinor, detail.group.currency)
-                                        TextButton(onClick = {
-                                            val copiedId = UUID.randomUUID().toString()
-                                            val copies = detail.allocations.filter { it.expenseId == entry.id }
-                                                .map { it.copy(expenseId = copiedId) }
-                                            val funding = detail.contributions.filter { it.expenseId == entry.id }
-                                                .map { it.copy(expenseId = copiedId) }
-                                            vm.saveExpense(entry.copy(id = copiedId, timestamp = System.currentTimeMillis()), copies, {
-                                                vm.showMessage("Expense copied. You can edit it from the activity list.")
-                                            }, funding.ifEmpty { listOf(Contribution(copiedId, entry.paidBy, entry.amountMinor)) })
-                                        }, contentPadding = PaddingValues(0.dp)) { Text("Duplicate") }
+                                        TextButton(
+                                            onClick = { duplicateExpenseId = entry.id },
+                                            contentPadding = PaddingValues(0.dp)
+                                        ) { Text("Duplicate") }
                                     }
                                 }
                             }
-                            is Transfer -> SurfaceCard {
+                            is Transfer -> SurfaceCard(Modifier.clickable { onEditTransfer(entry.id) }) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("↗", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
                                     Spacer(Modifier.width(12.dp))
@@ -223,7 +241,12 @@ fun GroupScreen(
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
                                         MoneyLabel(entry.amountMinor, detail.group.currency)
-                                        TextButton(onClick = { deleteTransfer = entry.id }, contentPadding = PaddingValues(0.dp)) { Text("Delete") }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            TextButton(onClick = { onEditTransfer(entry.id) },
+                                                contentPadding = PaddingValues(0.dp)) { Text("Edit") }
+                                            TextButton(onClick = { deleteTransfer = entry.id },
+                                                contentPadding = PaddingValues(0.dp)) { Text("Delete") }
+                                        }
                                     }
                                 }
                             }
@@ -485,10 +508,57 @@ fun GroupScreen(
             vm.renameGroup(detail.group.id, name) { rename = false }
         }
     }
+    duplicateExpenseId?.let { id ->
+        val source = detail.expenses.firstOrNull { it.id == id }
+        if (source != null) {
+            AlertDialog(
+                onDismissRequest = { if (!duplicating) duplicateExpenseId = null },
+                title = { Text("Duplicate expense?") },
+                text = {
+                    Text("Add another ${source.title} for ${detail.group.currency} " +
+                        "${Money.format(source.amountMinor)} with the same payer(s) and shares? " +
+                        "The copy will use today's date.")
+                },
+                confirmButton = {
+                    TextButton(enabled = !duplicating, onClick = {
+                        duplicating = true
+                        val copyId = UUID.randomUUID().toString()
+                        val copiedShares = detail.allocations.filter { it.expenseId == source.id }
+                            .map { it.copy(expenseId = copyId) }
+                        val paid = detail.contributions.filter { it.expenseId == source.id }
+                            .map { it.copy(expenseId = copyId) }
+                        vm.saveExpense(
+                            source.copy(id = copyId, timestamp = System.currentTimeMillis()),
+                            copiedShares,
+                            {
+                                duplicating = false
+                                duplicateExpenseId = null
+                                vm.showMessage("Expense duplicated. Tap it to make changes.")
+                            },
+                            paid.ifEmpty {
+                                listOf(Contribution(copyId, source.paidBy, source.amountMinor))
+                            },
+                            onError = { duplicating = false }
+                        )
+                    }) { Text(if (duplicating) "Copying..." else "Duplicate") }
+                },
+                dismissButton = {
+                    TextButton(enabled = !duplicating,
+                        onClick = { duplicateExpenseId = null }) { Text("Cancel") }
+                }
+            )
+        } else {
+            LaunchedEffect(id) { duplicateExpenseId = null }
+        }
+    }
     deleteTransfer?.let { id ->
+        val transfer = detail.transfers.firstOrNull { it.id == id }
         AlertDialog(
             onDismissRequest = { deleteTransfer = null },
-            title = { Text("Delete this repayment?") },
+            title = {
+                Text(if (transfer?.kind == TransferKind.ADVANCE)
+                    "Delete this cash advance?" else "Delete this repayment?")
+            },
             text = { Text("Removing this cash movement recalculates everyone’s balance. This cannot be undone.") },
             confirmButton = { TextButton(onClick = { vm.deleteTransfer(detail.group.id, id); deleteTransfer = null }) { Text("Delete") } },
             dismissButton = { TextButton(onClick = { deleteTransfer = null }) { Text("Cancel") } }

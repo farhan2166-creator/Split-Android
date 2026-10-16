@@ -62,7 +62,13 @@ sealed interface Screen {
     data class Group(val id: String) : Screen
     data class ExpenseForm(val groupId: String, val expenseId: String? = null) : Screen
     data class LedgerForm(val groupId: String) : Screen
-    data class PaymentForm(val groupId: String, val from: String? = null, val to: String? = null, val amount: Long? = null) : Screen
+    data class PaymentForm(
+        val groupId: String,
+        val from: String? = null,
+        val to: String? = null,
+        val amount: Long? = null,
+        val transferId: String? = null
+    ) : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -264,7 +270,12 @@ class MainActivity : ComponentActivity() {
                                 vm = vm,
                                 onBack = back,
                                 onExpense = { id -> screen = Screen.ExpenseForm(current.id, id) },
-                                onPayment = { from, to, amount -> screen = Screen.PaymentForm(current.id, from, to, amount) },
+                                onPayment = { from, to, amount ->
+                                    screen = Screen.PaymentForm(current.id, from, to, amount)
+                                },
+                                onEditTransfer = { id ->
+                                    screen = Screen.PaymentForm(current.id, transferId = id)
+                                },
                                 onLedger = { screen = Screen.LedgerForm(current.id) },
                                 onTourStatement = { selectedMemberId ->
                                     try {
@@ -309,7 +320,10 @@ class MainActivity : ComponentActivity() {
                         is Screen.PaymentForm -> {
                             val item = detail?.takeIf { it.group.id == current.groupId }
                             if (item == null) LoadingPage(back)
-                            else PaymentEditor(item, current.from, current.to, current.amount, vm, back)
+                            else PaymentEditor(
+                                item, current.from, current.to, current.amount, vm, back,
+                                transferId = current.transferId
+                            )
                         }
                     }
                     restoreCandidate?.let { snapshot ->

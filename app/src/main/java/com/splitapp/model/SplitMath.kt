@@ -7,13 +7,13 @@ import java.text.DecimalFormat
 
 /** All persisted monetary values use integer hundredths, never floating point. */
 object Money {
-    private val amountPattern = Regex("[0-9]{1,12}(\\.[0-9]{1,2})?")
+    private val amountPattern = Regex("(?:[0-9]{1,12}|[0-9]{1,3}(?:,[0-9]{3}){1,3})(\\.[0-9]{1,2})?")
 
     fun parse(text: String): Long? {
         val value = text.trim()
         if (!amountPattern.matches(value)) return null
         return try {
-            BigDecimal(value).movePointRight(2).longValueExact()
+            BigDecimal(value.replace(",", "")).movePointRight(2).longValueExact()
         } catch (_: ArithmeticException) {
             null
         }
@@ -44,7 +44,7 @@ object SplitMath {
         return parts.associate { it.id to (it.whole + if (it.id in winners) 1 else 0) }
     }
 
-    /** Paid - consumed + repayments sent - repayments received. Positive means owed money. */
+    /** Expenses paid - own shares + cash sent - cash received. Positive means owed money. */
     fun balances(detail: GroupDetail): Map<String, Long> {
         val balance = detail.members.associate { it.id to 0L }.toMutableMap()
         val expenses = detail.expenses.associateBy { it.id }

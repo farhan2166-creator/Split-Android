@@ -18,9 +18,9 @@ import java.util.Calendar
 import java.util.Date
 import com.splitapp.data.SplitViewModel
 import com.splitapp.model.*
+import com.splitapp.model.ExpenseSplitMode as Mode
 import java.util.UUID
 
-private enum class Mode(val title: String) { Equal("Equal"), Shares("Shares"), Percent("Percent"), Exact("Exact") }
 private val categories = listOf("Food", "Transport", "Stay", "Groceries", "Shopping", "Entertainment", "Bills", "Healthcare", "Other")
 
 @Composable
@@ -31,8 +31,17 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
     var note by remember(expenseId) { mutableStateOf(existing?.note.orEmpty()) }
     var expenseDate by remember(expenseId) { mutableLongStateOf(existing?.timestamp ?: System.currentTimeMillis()) }
     val context = LocalContext.current
+    val localMe = remember(context, detail.group.id) {
+        context.getSharedPreferences(
+            "split_group_identity", android.content.Context.MODE_PRIVATE
+        ).getString("member_${detail.group.id}", null)
+    }
     var category by remember(expenseId) { mutableStateOf(existing?.category ?: "Food") }
-    var payer by remember(expenseId) { mutableStateOf(existing?.paidBy ?: detail.members.first().id) }
+    var payer by remember(expenseId) {
+        mutableStateOf(existing?.paidBy
+            ?: detail.members.firstOrNull { it.id == localMe }?.id
+            ?: detail.members.first().id)
+    }
     var multiplePayers by remember(expenseId) { mutableStateOf(detail.contributions.count { it.expenseId == expenseId } > 1) }
     val payerInputs = remember(expenseId) {
         mutableStateMapOf<String, String>().apply {
@@ -49,9 +58,11 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
             original.forEach { put(it.memberId, Money.input(it.amountMinor)) }
         }
     }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember(expenseId) { mutableStateOf<String?>(null) }
+    var saving by remember(expenseId) { mutableStateOf(false) }
+    val draftId = remember(expenseId) { existing?.id ?: UUID.randomUUID().toString() }
     var showAdvanced by remember(expenseId) {
-        mutableStateOf(multiplePayers || mode != Mode.Equal || note.isNotBlank())
+        mutableStateOf(multiplePayers || note.isNotBlank())
     }
     var splitMenu by remember { mutableStateOf(false) }
     var categoryMenu by remember { mutableStateOf(false) }
@@ -91,10 +102,10 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                             style = MaterialTheme.typography.labelMedium)
                         Spacer(Modifier.height(5.dp))
                     }
-                    Button(onClick = {
+                    Button(enabled = !saving, onClick = {
                         val amount = Money.parse(amountText)
                         val allocations = if (amount == null || amount <= 0L || selected.isEmpty())
-                            null else computeAllocations(amount, selected.toList(), mode, inputs)
+                            null else ExpenseSplitDraft.allocations(amount, selected.toList(), mode, inputs)
                         val funding = if (amount == null || amount <= 0L) null
                             else if (!multiplePayers) {
                                 listOf(Contribution(existing?.id ?: "", payer, amount))
@@ -124,17 +135,24 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                             }
                             else -> {
                                 error = null
-                                val id = existing?.id ?: UUID.randomUUID().toString()
+                                saving = true
+                                val id = draftId
                                 vm.saveExpense(
                                     Expense(id, detail.group.id, title.trim(), category,
-                                        amount, payer, note.trim(), expenseDate),
+                                        amount, if (multiplePayers) funding.first().memberId else payer,
+                                        note.trim(), expenseDate),
                                     allocations.map { Allocation(id, it.key, it.value) },
                                     onBack,
-                                    funding.map { it.copy(expenseId = id) }
+                                    funding.map { it.copy(expenseId = id) },
+                                    onError = { saving = false }
                                 )
                             }
                         }
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        if (saving) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                        }
                         Text(if (existing == null) "Add expense" else "Save changes")
                     }
                 }
@@ -253,7 +271,7 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                 }
                 val amount = Money.parse(amountText)
                 val preview = if (amount != null && amount > 0L)
-                    computeAllocations(amount, selected.toList(), mode, inputs) else null
+                    ExpenseSplitDraft.allocations(amount, selected.toList(), mode, inputs) else null
                 detail.members.forEach { member ->
                     Row(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 43.dp),
@@ -262,9 +280,16 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                         Checkbox(
                             checked = member.id in selected,
                             onCheckedChange = { checked ->
-                                if (checked && member.id !in selected) selected.add(member.id)
-                                if (!checked) selected.remove(member.id)
-                                if (mode != Mode.Equal) initializeInputs(mode)
+                                if (checked && member.id !in selected) {
+                                    selected.add(member.id)
+                                    if (mode != Mode.Equal && inputs[member.id].isNullOrBlank()) {
+                                        inputs[member.id] = ExpenseSplitDraft.newParticipantInput(mode)
+                                    }
+                                }
+                                if (!checked) {
+                                    selected.remove(member.id)
+                                    inputs.remove(member.id)
+                                }
                                 error = null
                             }
                         )
@@ -293,10 +318,26 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                     }
                 }
                 Text(
-                    if (mode == Mode.Equal) "Only checked travelers share this expense."
-                    else "Enter each selected traveler's share. The total must match.",
+                    if (mode == Mode.Equal) "${selected.size} traveler(s) share this expense."
+                    else "Only checked travelers are charged. Edit their amounts or parts above.",
                     color = Muted, style = MaterialTheme.typography.labelSmall
                 )
+                if (mode == Mode.Exact || mode == Mode.Percent) {
+                    val assigned = ExpenseSplitDraft.enteredTotal(selected, mode, inputs)
+                    val expected = if (mode == Mode.Percent) 10000L else amount
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        when {
+                            assigned == null -> "Check the entered values"
+                            expected == null -> "Enter a valid total expense amount"
+                            else -> "Assigned: ${Money.format(assigned)} / ${Money.format(expected)}" +
+                                if (mode == Mode.Percent) "%" else " ${detail.group.currency}"
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (assigned != null && expected != null && assigned == expected)
+                            MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    )
+                }
             }
             TextButton(onClick = { showAdvanced = !showAdvanced }, modifier = Modifier.fillMaxWidth()) {
                 Text(if (showAdvanced) "Hide extra options  ⌃" else "Multi-payer bill or note?  More options  ⌄")
@@ -308,7 +349,11 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                             style = MaterialTheme.typography.bodyMedium)
                         Switch(checked = multiplePayers, onCheckedChange = { enabled ->
                             multiplePayers = enabled
-                            if (enabled && payerInputs.isEmpty()) payerInputs[payer] = amountText
+                            if (enabled) {
+                                payerInputs.clear()
+                                payerInputs[payer] = amountText
+                            }
+                            error = null
                         })
                     }
                     if (multiplePayers) {
@@ -317,11 +362,32 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
                         detail.members.forEach { member ->
                             OutlinedTextField(
                                 value = payerInputs[member.id].orEmpty(),
-                                onValueChange = { payerInputs[member.id] = it },
+                                onValueChange = { payerInputs[member.id] = it; error = null },
                                 label = { Text("${member.name} paid · ${detail.group.currency}") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 singleLine = true, modifier = Modifier.fillMaxWidth()
                             )
+                        }
+                        val paid = detail.members.sumOf { member ->
+                            Money.parse(payerInputs[member.id].orEmpty()) ?: 0L
+                        }
+                        val bill = Money.parse(amountText)
+                        Text(
+                            if (bill == null) "Enter a valid bill total"
+                            else "Contributions: ${Money.format(paid)} / ${Money.format(bill)} ${detail.group.currency}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (bill != null && paid == bill) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.error
+                        )
+                        if (bill != null && paid < bill && payer in detail.members.map { it.id }) {
+                            TextButton(onClick = {
+                                val previous = Money.parse(payerInputs[payer].orEmpty()) ?: 0L
+                                payerInputs[payer] = Money.input(previous + (bill - paid))
+                                error = null
+                            }) {
+                                Text("Assign remaining ${Money.format(bill - paid)} to " +
+                                    (detail.members.firstOrNull { it.id == payer }?.name ?: "payer"))
+                            }
                         }
                     }
                     Spacer(Modifier.height(6.dp))
@@ -352,25 +418,5 @@ fun ExpenseEditor(detail: GroupDetail, expenseId: String?, vm: SplitViewModel, o
             confirmButton = { TextButton(onClick = { vm.deleteExpense(detail.group.id, existing.id, onBack); confirmDelete = false }) { Text("Delete") } },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
         )
-    }
-}
-
-private fun computeAllocations(total: Long, selected: List<String>, mode: Mode, inputs: Map<String, String>): Map<String, Long>? {
-    if (selected.isEmpty() || total <= 0) return null
-    return when (mode) {
-        Mode.Equal -> SplitMath.allocate(total, selected.associateWith { 1L })
-        Mode.Shares -> {
-            val weights = selected.associateWith { inputs[it]?.toLongOrNull() ?: return null }
-            if (weights.values.any { it <= 0 }) null else SplitMath.allocate(total, weights)
-        }
-        Mode.Percent -> {
-            val percent = selected.associateWith { Money.parse(inputs[it].orEmpty()) ?: return null }
-            if (percent.values.any { it <= 0 } || percent.values.sum() != 10000L) null
-            else SplitMath.allocate(total, percent)
-        }
-        Mode.Exact -> {
-            val pieces = selected.associateWith { Money.parse(inputs[it].orEmpty()) ?: return null }
-            if (pieces.values.sum() != total) null else pieces
-        }
     }
 }
