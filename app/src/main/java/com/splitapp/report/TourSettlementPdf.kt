@@ -13,8 +13,7 @@ import java.util.Date
 object TourSettlementPdf {
     private const val WIDTH = 842
     private const val HEIGHT = 595
-    private const val GREEN = -0xe9a99e
-    fun write(stream: OutputStream, report: TourSettlement) {
+    fun write(stream: OutputStream, report: TourSettlement, memberId: String? = null) {
         require(report.members.size <= 8) { "One-page settlement supports up to 8 travelers" }
         val pdf = PdfDocument()
         try {
@@ -40,15 +39,45 @@ object TourSettlementPdf {
             text(report.group.name,36f,61f,23f,Color.WHITE,true)
             text("CURRENCY: ${report.group.currency}",806f,31f,10f,Color.WHITE,true,true)
             text("${date(report.firstTransactionAt)}  –  ${date(report.lastTransactionAt)}",806f,59f,10f,Color.WHITE,false,true)
-            text("TOUR EXPENSES",36f,109f,10f,0xFF64736F.toInt(),true)
-            text("${report.group.currency} ${amount(report.totalExpensesMinor)}",36f,133f,20f,0xFF146C63.toInt(),true)
-            text("${report.expenseCount} expense records",36f,149f,9f)
-            text("CASH ADVANCES",270f,109f,10f,0xFF64736F.toInt(),true)
-            text(amount(report.advancesMinor),270f,133f,19f,0xFF146C63.toInt(),true)
-            text("PRIVATE REPAYMENTS",515f,109f,10f,0xFF64736F.toInt(),true)
-            text(amount(report.repaymentsMinor),515f,133f,19f,0xFF146C63.toInt(),true)
-            val status = if(report.isFullySettled) "FULLY SETTLED" else "BALANCES OPEN"
-            text(status,806f,149f,10f,if(report.isFullySettled) 0xFF146C63.toInt() else 0xFFAE6738.toInt(),true,true)
+            // Same four figures as the group Overview tab. No assumption that the
+            // first traveler owns the phone: unavailable personal values are N/A.
+            val figures = report.figuresFor(memberId)
+            val selected = report.members.firstOrNull { it.member.id == memberId }
+            val currency = report.group.currency
+            val status = if (report.isFullySettled) "FULLY SETTLED" else "BALANCES OPEN"
+            text(status,806f,76f,9f,Color.WHITE,true,true)
+            if (selected != null) {
+                text("PERSONAL SUMMARY: ${selected.member.name}",36f,77f,9f,
+                    0xFFDAEEE6.toInt(),true)
+            }
+            val outstandingDescription = when {
+                figures.outstandingMinor == null -> "Choose Me in the app"
+                figures.outstandingMinor > 0L -> "To collect"
+                figures.outstandingMinor < 0L -> "To pay"
+                else -> "Fully settled"
+            }
+            val metrics = listOf(
+                Triple("TOTAL EXPENSES", amount(figures.totalExpensesMinor), "All bills"),
+                Triple("MY EXPENSES",
+                    figures.myExpensesMinor?.let(::amount) ?: "N/A", "My share"),
+                Triple("CASH RECEIVED",
+                    figures.cashReceivedMinor?.let(::amount) ?: "N/A", "Advances + repayments"),
+                Triple("OUTSTANDING",
+                    figures.outstandingMinor?.let { amount(kotlin.math.abs(it)) } ?: "N/A",
+                    outstandingDescription)
+            )
+            metrics.forEachIndexed { index, (label, value, note) ->
+                val x = 36f + index * 193f
+                p.color = 0xFFF1F6F3.toInt()
+                c.drawRoundRect(x,90f,x+181f,157f,8f,8f,p)
+                text(label,x+9f,107f,8f,0xFF566E66.toInt(),true)
+                val display = if(value == "N/A") value else "$currency $value"
+                text(display,x+9f,133f,
+                    if(display.length > 16) 12f else 16f,
+                    if(index == 3 && (figures.outstandingMinor ?: 0L) < 0L)
+                        0xFFB44340.toInt() else 0xFF146C63.toInt(),true)
+                text(note,x+9f,148f,8f,0xFF526861.toInt())
+            }
             line(164f)
             val cols = listOf(40f,177f,269f,358f,446f,528f,608f,691f,802f)
             p.color = 0xFFECF4EF.toInt()
@@ -85,8 +114,12 @@ object TourSettlementPdf {
                 if (report.suggestedRepayments.size > 7) text("Additional repayments are shown in the detailed ledger.",36f,bottom+111f,8f)
             }
             line(561f)
-            text("Net balance = bills paid + advances given + repayments sent - own share - advances received - repayments received.",36f,577f,8f,0xFF526861.toInt())
-            text("Positive: receive  /  Negative: pay",806f,577f,8f,0xFF526861.toInt(),false,true)
+            text("Cash advances: $currency ${amount(report.advancesMinor)}    Repayments: $currency ${amount(report.repaymentsMinor)}",
+                36f,572f,8f,0xFF526861.toInt())
+            text("Positive balance: collect / Negative: pay",806f,572f,8f,
+                0xFF526861.toInt(),false,true)
+            text("Balance = bills paid + advances given + repayments sent - own share - advances received - repayments received",
+                36f,585f,7f,0xFF526861.toInt())
             pdf.finishPage(page)
             pdf.writeTo(stream)
         } finally { pdf.close() }
