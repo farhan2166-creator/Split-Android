@@ -57,6 +57,39 @@ class TourSettlementTest {
         assertEquals(500L, report.members.first { it.member.id == "b" }.totalCashInMinor)
     }
 
+    @Test fun overviewFiguresMatchPersonalSettlementForPdfAndScreen() {
+        val transfers = listOf(
+            Transfer("advance3", "tour", "b", "a", 2200L, "", 3L, TransferKind.ADVANCE),
+            Transfer("partial3", "tour", "c", "a", 800L, "", 4L, TransferKind.REPAYMENT)
+        )
+        val report = TourSettlementBuilder.build(detail(transfers))
+        val ali = report.members.single { it.member.id == "a" }
+        val figures = report.figuresFor("a")
+        assertEquals(12000L, figures.totalExpensesMinor)
+        assertEquals(ali.allocatedShareMinor, figures.myExpensesMinor)
+        assertEquals(ali.totalCashInMinor, figures.cashReceivedMinor)
+        assertEquals(ali.balanceMinor, figures.outstandingMinor)
+        assertEquals(-7000L, figures.outstandingMinor)
+    }
+
+    @Test fun overviewNeverGuessesMeWhenIdentityIsMissing() {
+        val report = TourSettlementBuilder.build(detail())
+        listOf(null, "", "missing").forEach { id ->
+            val figures = report.figuresFor(id)
+            assertEquals(12000L, figures.totalExpensesMinor)
+            assertNull(figures.myExpensesMinor)
+            assertNull(figures.cashReceivedMinor)
+            assertNull(figures.outstandingMinor)
+        }
+    }
+
+    @Test fun signedOutstandingDirectionRemainsUnchanged() {
+        val report = TourSettlementBuilder.build(detail())
+        assertEquals(-4000L, report.figuresFor("a").outstandingMinor)
+        assertEquals(5000L, report.figuresFor("b").outstandingMinor)
+        assertEquals(-1000L, report.figuresFor("c").outstandingMinor)
+    }
+
     @Test fun finalRepaymentsMarkTourSettledWithoutChangingSpending() {
         val transfers = listOf(
             Transfer("a1", "tour", "a", "b", 2000, "", 1, TransferKind.ADVANCE),
