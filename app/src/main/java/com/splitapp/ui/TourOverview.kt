@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.sp
 import com.splitapp.model.Money
 import com.splitapp.model.TourSettlement
 import com.splitapp.model.TravelerSettlement
+import com.splitapp.model.figuresFor
 
 /**
  * Four genuinely different tour figures:
@@ -27,6 +28,7 @@ fun TourOverview(
     onChooseMe: () -> Unit
 ) {
     val currency = statement.group.currency
+    val figures = statement.figuresFor(me?.member?.id)
     SurfaceCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -49,19 +51,19 @@ fun TourOverview(
         Spacer(Modifier.height(9.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TourMetric("Total Expenses",
-                "$currency ${Money.format(statement.totalExpensesMinor)}",
+                "$currency ${Money.format(figures.totalExpensesMinor)}",
                 "All travelers' bills", Modifier.weight(1f))
             TourMetric("My Expenses",
-                me?.let { "$currency ${Money.format(it.allocatedShareMinor)}" } ?: "—",
+                figures.myExpensesMinor?.let { "$currency ${Money.format(it)}" } ?: "—",
                 "My share of bills", Modifier.weight(1f))
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TourMetric("Cash Received",
-                me?.let { "$currency ${Money.format(it.totalCashInMinor)}" } ?: "—",
+                figures.cashReceivedMinor?.let { "$currency ${Money.format(it)}" } ?: "—",
                 "Advances + repayments", Modifier.weight(1f))
             TourMetric("Outstanding",
-                me?.let { "$currency ${Money.format(kotlin.math.abs(it.balanceMinor))}" } ?: "—",
+                figures.outstandingMinor?.let { "$currency ${Money.format(kotlin.math.abs(it))}" } ?: "—",
                 when {
                     me == null -> "Select Me first"
                     me.balanceMinor > 0L -> "To collect"
