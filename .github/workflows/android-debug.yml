@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout full Git history
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # Avoid exposing the checkout token to Gradle or untrusted PR scripts.
@@ -86,7 +86,7 @@ jobs:
           echo "The Actions artifact is ZIP-wrapped by GitHub. For a **direct .apk download**, open the debug pre-release linked below when the publishing job finishes." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Split-Android-debug-${{ github.run_number }}-a${{ github.run_attempt }}
           path: dist/
@@ -103,7 +103,7 @@ jobs:
       contents: write
     steps:
       - name: Download tested APK artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: Split-Android-debug-${{ github.run_number }}-a${{ github.run_attempt }}
           path: dist
