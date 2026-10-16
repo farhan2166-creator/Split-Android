@@ -63,7 +63,7 @@ fun GroupScreen(
     val statement = remember(detail) { TourSettlementBuilder.build(detail) }
     val myStatement = statement.members.firstOrNull { it.member.id == myMemberId }
     val activity = remember(detail, activityKind, search, categoryFilter) {
-        LedgerActivity.filter(detail, activityKind, search, categoryFilter)
+        ActivitySearch.filter(detail, activityKind, search, categoryFilter)
     }
     Scaffold(
         topBar = {

@@ -3,7 +3,7 @@ package com.splitapp.model
 import org.junit.Assert.*
 import org.junit.Test
 
-class LedgerActivityTest {
+class ActivitySearchTest {
     private val group = SplitGroup("g", "Tour", "PKR", 1L)
     private val people = listOf(
         Member("a", "g", "Asim"), Member("b", "g", "Farhan"),
@@ -26,39 +26,39 @@ class LedgerActivityTest {
     )
 
     @Test fun allActivityIsNewestFirst() {
-        val ids = LedgerActivity.filter(detail, ActivityKind.All).map {
+        val ids = ActivitySearch.filter(detail, ActivityKind.All).map {
             when(it) { is Expense -> it.id; is Transfer -> it.id; else -> "" }
         }
         assertEquals(listOf("e2", "t2", "t1", "e1"), ids)
     }
 
     @Test fun filtersSeparateExpensesAdvancesAndRepayments() {
-        assertEquals(2, LedgerActivity.filter(detail, ActivityKind.Expenses).size)
+        assertEquals(2, ActivitySearch.filter(detail, ActivityKind.Expenses).size)
         assertEquals(listOf("t1"),
-            LedgerActivity.filter(detail, ActivityKind.Advances).filterIsInstance<Transfer>().map { it.id })
+            ActivitySearch.filter(detail, ActivityKind.Advances).filterIsInstance<Transfer>().map { it.id })
         assertEquals(listOf("t2"),
-            LedgerActivity.filter(detail, ActivityKind.Repayments).filterIsInstance<Transfer>().map { it.id })
+            ActivitySearch.filter(detail, ActivityKind.Repayments).filterIsInstance<Transfer>().map { it.id })
         assertEquals(listOf("e1"),
-            LedgerActivity.filter(detail, ActivityKind.All, category = "Stay")
+            ActivitySearch.filter(detail, ActivityKind.All, category = "Stay")
                 .filterIsInstance<Expense>().map { it.id })
-        assertEquals(1, LedgerActivity.filter(detail, ActivityKind.All, category = "Stay").size)
+        assertEquals(1, ActivitySearch.filter(detail, ActivityKind.All, category = "Stay").size)
     }
 
     @Test fun textMatchesNotesPayersParticipantsAndTransferKinds() {
-        assertEquals(1, LedgerActivity.filter(detail, ActivityKind.Expenses, "Room 11").size)
-        assertEquals(1, LedgerActivity.filter(detail, ActivityKind.Expenses, "Petrol").size)
-        assertEquals(1, LedgerActivity.filter(detail, ActivityKind.Expenses, "Tahir").size)
+        assertEquals(1, ActivitySearch.filter(detail, ActivityKind.Expenses, "Room 11").size)
+        assertEquals(1, ActivitySearch.filter(detail, ActivityKind.Expenses, "Petrol").size)
+        assertEquals(1, ActivitySearch.filter(detail, ActivityKind.Expenses, "Tahir").size)
         assertEquals(listOf("t1"),
-            LedgerActivity.filter(detail, ActivityKind.All, "advance")
+            ActivitySearch.filter(detail, ActivityKind.All, "advance")
                 .filterIsInstance<Transfer>().map { it.id })
         assertEquals(listOf("t2"),
-            LedgerActivity.filter(detail, ActivityKind.All, "partial")
+            ActivitySearch.filter(detail, ActivityKind.All, "partial")
                 .filterIsInstance<Transfer>().map { it.id })
-        assertTrue(LedgerActivity.filter(detail, ActivityKind.Repayments, "Hotel").isEmpty())
+        assertTrue(ActivitySearch.filter(detail, ActivityKind.Repayments, "Hotel").isEmpty())
     }
 
     @Test fun whitespaceQueryDoesNotHideActivity() {
-        assertEquals(4, LedgerActivity.filter(detail, ActivityKind.All, "   ").size)
-        assertTrue(LedgerActivity.filter(detail, ActivityKind.All, "Not in this trip").isEmpty())
+        assertEquals(4, ActivitySearch.filter(detail, ActivityKind.All, "   ").size)
+        assertTrue(ActivitySearch.filter(detail, ActivityKind.All, "Not in this trip").isEmpty())
     }
 }

@@ -5,7 +5,7 @@ enum class ActivityKind(val label: String) {
     All("All"), Expenses("Expenses"), Advances("Advances"), Repayments("Repayments")
 }
 
-object LedgerActivity {
+object ActivitySearch {
     /** Newest-first view of stored expenses and cash movements. */
     fun filter(
         detail: GroupDetail,
