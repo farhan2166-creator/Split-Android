@@ -185,3 +185,11 @@ The updated Split interface takes inspiration from straightforward expense-share
 Long records and unusual font sizes can still scroll, so important information is never hidden. Financial calculations, cash advances, partial repayments, full offline backup, and single-page settlement PDFs are unchanged. Version 1.8 has no new runtime permission and keeps application ID `com.mythos.split`.
 
 New groups automatically mark their first participant as **Me** on the creating device. In existing or imported groups, you can change or clear the local selection through the group's traveler management; no account signup or personal data permissions are required.
+
+## Dedicated tour Overview and matching one-page PDF (v1.9)
+
+Tour summary cards **no longer appear above every group tab**. The group bottom bar now has four entries: **Activity, Balances, Insights, Overview**. Activity defaults to the expense list with its compact Expense / Repay / Settle PDF controls, while Balances and Insights keep their own content. Only **Overview** displays the four personal summary cards and the direct one-page settlement PDF export button.
+
+The one-page landscape tour settlement PDF includes the exact same **Total Expenses, My Expenses, Cash Received, Outstanding** figures (with To pay / To collect / Fully settled direction), clearly identifying the selected **Me** traveler. Below them it retains every traveler's bills paid, own share, advances, repayments, balances, and recommended final settlements. When Me is not selected or is no longer a participant, personal values are marked **N/A**; the tour total remains accurate. Cash movements are not counted as expenses.
+
+UI and PDF figures share one tested accounting function, `TourSettlement.figuresFor(memberId)`, so personal numbers cannot diverge between the app and the printout. Previous group tab indices are preserved for existing users. No data migration, backend, receipt photos, or account permissions are needed.
