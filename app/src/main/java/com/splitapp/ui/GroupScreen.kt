@@ -27,7 +27,7 @@ fun GroupScreen(
     onExpense: (String?) -> Unit,
     onPayment: (String?, String?, Long?) -> Unit,
     onLedger: () -> Unit,
-    onTourStatement: () -> Unit,
+    onTourStatement: (String?) -> Unit,
     onShare: (String, String) -> Unit,
     selectedTab: Int, onTabChange: (Int) -> Unit
 ) {
@@ -104,20 +104,21 @@ fun GroupScreen(
         },
         bottomBar = {
             SplitBottomTabs(
-                listOf("Activity" to "▤", "Balances" to "⇄", "Insights" to "◉"),
+                listOf("Activity" to "▤", "Balances" to "⇄", "Insights" to "◉", "Overview" to "▦"),
                 tab
             ) { onTabChange(it) }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp)) {
-            TourOverview(statement, myStatement) { showMePicker = true }
-            Spacer(Modifier.height(5.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                CompactQuickAction("Expense", "+", { onExpense(null) }, Modifier.weight(1f))
-                CompactQuickAction("Repay", "↗", { onPayment(null, null, null) }, Modifier.weight(1f))
-                CompactQuickAction("Settle PDF", "▤", onTourStatement, Modifier.weight(1f))
+            // Keep other tabs uncluttered: summary metrics belong to Overview only.
+            if (tab == 0) {
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    CompactQuickAction("Expense", "+", { onExpense(null) }, Modifier.weight(1f))
+                    CompactQuickAction("Repay", "↗", { onPayment(null, null, null) }, Modifier.weight(1f))
+                    CompactQuickAction("Settle PDF", "▤", { onTourStatement(myMemberId) }, Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(5.dp))
             }
-            Spacer(Modifier.height(5.dp))
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(bottom = 10.dp),
@@ -256,7 +257,7 @@ fun GroupScreen(
                         }
                     }
                 }
-                else -> {
+                2 -> {
                     item {
                         SectionTitle("Plan your spending")
                         BudgetPanel(detail, vm)
@@ -309,9 +310,29 @@ fun GroupScreen(
                             Text("Your group data stays on this device.", style = MaterialTheme.typography.bodyMedium)
                             Spacer(Modifier.height(8.dp))
                             OutlinedButton(onClick = { onShare(summary(detail, balances), "text/plain") }, modifier = Modifier.fillMaxWidth()) { Text("Share balance summary") }
-                            OutlinedButton(onClick = onTourStatement, modifier = Modifier.fillMaxWidth()) { Text("One-page tour settlement PDF") }
+                            OutlinedButton(onClick = { onTourStatement(myMemberId) }, modifier = Modifier.fillMaxWidth()) { Text("One-page tour settlement PDF") }
                             OutlinedButton(onClick = onLedger, modifier = Modifier.fillMaxWidth()) { Text("Detailed PDF ledger: people and date range") }
                             OutlinedButton(onClick = { onShare(exportCsv(detail), "text/csv") }, modifier = Modifier.fillMaxWidth()) { Text("Export transactions as CSV") }
+                        }
+                    }
+                }
+                3 -> {
+                    item {
+                        Spacer(Modifier.height(5.dp))
+                        TourOverview(statement, myStatement) { showMePicker = true }
+                        Spacer(Modifier.height(11.dp))
+                        SectionTitle("Tour settlement")
+                        Text(
+                            "The same four figures are included in the single-page PDF, " +
+                                "together with every traveler's contributions, shares and balances.",
+                            style = MaterialTheme.typography.bodySmall, color = Muted
+                        )
+                        Spacer(Modifier.height(9.dp))
+                        Button(
+                            onClick = { onTourStatement(myMemberId) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        ) {
+                            Text("Save one-page settlement PDF")
                         }
                     }
                 }
