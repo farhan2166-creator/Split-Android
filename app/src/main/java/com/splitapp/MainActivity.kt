@@ -149,7 +149,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 var pendingCsv by remember { mutableStateOf("") }
-                var pendingTourSettlement by remember { mutableStateOf<TourSettlement?>(null) }
+                var pendingTourSettlement by remember { mutableStateOf<Pair<TourSettlement, String?>?>(null) }
                 val saveTourStatement = rememberLauncherForActivityResult(
                     ActivityResultContracts.CreateDocument("application/pdf")
                 ) { uri ->
@@ -159,7 +159,7 @@ class MainActivity : ComponentActivity() {
                         try {
                             withContext(Dispatchers.IO) {
                                 contentResolver.openOutputStream(uri)?.use { output ->
-                                    TourSettlementPdf.write(output, snapshot)
+                                    TourSettlementPdf.write(output, snapshot.first, snapshot.second)
                                 } ?: error("Unable to create statement PDF")
                             }
                             vm.showMessage("Tour settlement PDF saved")
@@ -266,9 +266,11 @@ class MainActivity : ComponentActivity() {
                                 onExpense = { id -> screen = Screen.ExpenseForm(current.id, id) },
                                 onPayment = { from, to, amount -> screen = Screen.PaymentForm(current.id, from, to, amount) },
                                 onLedger = { screen = Screen.LedgerForm(current.id) },
-                                onTourStatement = {
+                                onTourStatement = { selectedMemberId ->
                                     try {
-                                        pendingTourSettlement = TourSettlementBuilder.build(item)
+                                        // Capture identity together with the immutable statement before
+                                        // opening the document picker, so a later selection cannot change it.
+                                        pendingTourSettlement = TourSettlementBuilder.build(item) to selectedMemberId
                                         saveTourStatement.launch("Split-Tour-Settlement.pdf")
                                     } catch (e: Exception) {
                                         vm.showMessage("Unable to build settlement: ${e.message ?: "Invalid ledger"}")
