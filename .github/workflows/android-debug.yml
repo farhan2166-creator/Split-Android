@@ -24,6 +24,14 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          # Avoid exposing the checkout token to Gradle or untrusted PR scripts.
+          persist-credentials: false
+
+      - name: Check public repository for tracked secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/check_repository_safety.py
 
       - name: Set up Java 17
         uses: actions/setup-java@v6
