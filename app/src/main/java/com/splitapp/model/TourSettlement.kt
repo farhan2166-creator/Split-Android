@@ -29,6 +29,29 @@ data class TourSettlement(
     val isFullySettled: Boolean get() = members.all { it.balanceMinor == 0L }
 }
 
+/**
+ * One source of truth for the four figures displayed on the Overview tab and
+ * printed on the one-page tour statement. Personal figures are absent until the
+ * traveler selects "Me"; no member is guessed from group order.
+ */
+data class TourOverviewFigures(
+    val totalExpensesMinor: Long,
+    val myExpensesMinor: Long?,
+    val cashReceivedMinor: Long?,
+    /** Positive means the traveler should collect; negative means they owe. */
+    val outstandingMinor: Long?
+)
+
+fun TourSettlement.figuresFor(memberId: String?): TourOverviewFigures {
+    val person = members.firstOrNull { it.member.id == memberId }
+    return TourOverviewFigures(
+        totalExpensesMinor = totalExpensesMinor,
+        myExpensesMinor = person?.allocatedShareMinor,
+        cashReceivedMinor = person?.totalCashInMinor,
+        outstandingMinor = person?.balanceMinor
+    )
+}
+
 object TourSettlementBuilder {
     fun build(detail: GroupDetail): TourSettlement {
         val balances = SplitMath.balances(detail)
