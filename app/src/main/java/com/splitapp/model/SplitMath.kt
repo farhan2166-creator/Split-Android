@@ -44,7 +44,7 @@ object SplitMath {
         return parts.associate { it.id to (it.whole + if (it.id in winners) 1 else 0) }
     }
 
-    /** Paid - consumed + repayments sent - repayments received. Positive means owed money. */
+    /** Expenses paid - own shares + cash sent - cash received. Positive means owed money. */
     fun balances(detail: GroupDetail): Map<String, Long> {
         val balance = detail.members.associate { it.id to 0L }.toMutableMap()
         val expenses = detail.expenses.associateBy { it.id }

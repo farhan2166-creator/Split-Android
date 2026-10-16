@@ -37,7 +37,7 @@ fun BackupRestoreDialog(
             ) {
                 Text("Backup verified: checksum, participant references, splits and balances.")
                 Text("$groupCount groups • $memberCount participants")
-                Text("$expenseCount expenses • $paymentCount repayments")
+                Text("$expenseCount expenses • $paymentCount cash movements")
                 HorizontalDivider()
                 Row {
                     RadioButton(
