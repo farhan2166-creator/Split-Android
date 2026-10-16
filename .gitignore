@@ -13,3 +13,31 @@ local.properties
 signing.properties
 release-signing.jks
 dist/
+
+# Signing credentials and confidential Android build material
+*.p12
+*.pfx
+*.pem
+*.key
+*.asc
+.env
+.env.*
+!*.env.example
+*credentials*.txt
+*credentials*.json
+*secrets*.json
+google-services.json
+service-account*.json
+*.properties.local
+
+# Personal tour expense records: never publish private user data
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite3
+*.csv
+*.pdf
+Split-Backup*.json
+*backup*.json
+*ledger*.json
