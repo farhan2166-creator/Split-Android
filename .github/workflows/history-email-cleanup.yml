@@ -36,7 +36,8 @@ jobs:
             echo '::error::Main changed after cleanup workflow was committed; refusing force-push.'
             exit 1
           }
-          test "$(git rev-parse 'refs/heads/main^')" = "$EXPECTED_OLD_HEAD"
+          git merge-base --is-ancestor "$EXPECTED_OLD_HEAD" refs/heads/main
+          git diff --quiet "$EXPECTED_OLD_HEAD" refs/heads/main -- . ':(exclude).github/workflows/history-email-cleanup.yml'
           test "$(git rev-parse "$EXPECTED_OLD_HEAD^{tree}")" = "$EXPECTED_OLD_TREE"
           git for-each-ref --format='%(refname) %(objectname)' refs/heads refs/tags > ../original-refs.txt
           git for-each-ref --format='%(refname)' refs/heads refs/tags > ../original-names.txt
@@ -79,13 +80,15 @@ jobs:
         run: |
           set -euo pipefail
           cd repo.git
-          push_args=(--atomic)
+          push_options=(--atomic)
+          push_refs=()
           while read -r ref expected_sha; do
-            push_args+=("--force-with-lease=$ref:$expected_sha" "$ref:$ref")
+            push_options+=("--force-with-lease=$ref:$expected_sha")
+            push_refs+=("$ref:$ref")
           done < ../original-refs.txt
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_PUSH_TOKEN" | base64 -w0)"
-          git -c "http.https://github.com/.extraheader=$auth_header" push "${push_args[@]}" origin
+          git -c "http.https://github.com/.extraheader=$auth_header" push "${push_options[@]}" origin "${push_refs[@]}"
           {
             echo '### Completed author-email history rewrite'
             echo 'All branches and existing release-tag names were updated in one atomic push.'
