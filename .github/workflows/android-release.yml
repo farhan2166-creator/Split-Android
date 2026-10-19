@@ -3,6 +3,9 @@ name: Android Release APK
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   workflow_dispatch:
     inputs:
       publish_release:
@@ -94,12 +97,12 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;35.0.0"
 
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.11.1'
           cache-provider: basic
 
       - name: Configure private release signing
@@ -134,7 +137,7 @@ jobs:
           BUILD_SEQUENCE=$((1000 + $(git rev-list --count HEAD) + GITHUB_RUN_NUMBER + GITHUB_RUN_ATTEMPT - 1))
           test "$BUILD_SEQUENCE" -le 9999
           echo "Rebuild version sequence: $BUILD_SEQUENCE"
-          gradle --no-daemon -PsplitCiRunNumber="$BUILD_SEQUENCE" testDebugUnitTest assembleRelease
+          gradle --no-daemon -PsplitCiRunNumber="$BUILD_SEQUENCE" testDebugUnitTest assembleRelease bundleRelease
 
       - name: Verify release signature and package APK
         id: package
@@ -147,6 +150,11 @@ jobs:
           SIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
           "$SIGNER" verify --verbose "$apk"
+          bundle="app/build/outputs/bundle/release/app-release.aab"
+          test -s "$bundle"
+          verification="$(jarsigner -verify "$bundle")"
+          echo "$verification"
+          grep -q "jar verified" <<< "$verification"
           BADGING="$("$AAPT" dump badging "$apk" | head -n 1)"
           echo "$BADGING"
           [[ "$BADGING" == *"name='com.mythos.split'"* ]]
@@ -155,9 +163,10 @@ jobs:
           echo "version_name=$VERSION" >> "$GITHUB_OUTPUT"
           mkdir -p dist
           cp "$apk" "dist/Split-Android-v${VERSION}-release.apk"
-          (cd dist && sha256sum *.apk > SHA256SUMS.txt)
+          cp "$bundle" "dist/Split-Android-v${VERSION}-play.aab"
+          (cd dist && sha256sum *.apk *.aab > SHA256SUMS.txt)
           echo "### Signed Split Android release v$VERSION" >> "$GITHUB_STEP_SUMMARY"
-          echo "APK and SHA256 checksum are available in the downloadable artifact." >> "$GITHUB_STEP_SUMMARY"
+          echo "Verified signed APK and Google Play AAB, with SHA256 checksums, are available in the artifact." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove temporary signing files
         if: always()
@@ -173,7 +182,7 @@ jobs:
           retention-days: 90
 
   publish:
-    name: Publish direct signed APK
+    name: Publish signed APK and Play AAB
     needs: release-apk
     if: github.ref == 'refs/heads/main' && needs.release-apk.result == 'success'
     runs-on: ubuntu-latest
@@ -181,7 +190,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download verified signed APK
+      - name: Download verified signed APK and AAB
         uses: actions/download-artifact@v8
         with:
           name: Split-Android-release-${{ github.run_number }}-a${{ github.run_attempt }}
@@ -194,7 +203,9 @@ jobs:
           (cd dist && sha256sum --check SHA256SUMS.txt)
           shopt -s nullglob
           files=(dist/*-release.apk)
+          bundles=(dist/*-play.aab)
           test "${#files[@]}" -eq 1
+          test "${#bundles[@]}" -eq 1
 
       - name: Publish signed APK download
         shell: bash
@@ -208,22 +219,27 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           files=(dist/*-release.apk)
+          bundles=(dist/*-play.aab)
           test "${#files[@]}" -eq 1
+          test "${#bundles[@]}" -eq 1
           apk="${files[0]}"
+          bundle="${bundles[0]}"
           filename="${apk##*/}"
+          bundle_name="${bundle##*/}"
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$PROMOTE" == "true" ]]; then
             tag="split-v${VERSION}-run${GITHUB_RUN_NUMBER}-a${GITHUB_RUN_ATTEMPT}"
             title="${RELEASE_TITLE:-Split Android v$VERSION}"
-            gh release create "$tag" "$apk" dist/SHA256SUMS.txt \
+            gh release create "$tag" "$apk" "$bundle" dist/SHA256SUMS.txt \
               --target "$GITHUB_SHA" --title "$title" \
-              --notes "Production-signed Split Android APK for com.mythos.split ($VERSION). SHA256 checksum included."
+              --notes "Production-signed Split Android APK and Google Play AAB for com.mythos.split ($VERSION). SHA256 checksums included. Play App Signing enrollment is required for Play uploads."
           else
             tag="split-signed-run${GITHUB_RUN_NUMBER}-attempt${GITHUB_RUN_ATTEMPT}"
-            gh release create "$tag" "$apk" dist/SHA256SUMS.txt \
+            gh release create "$tag" "$apk" "$bundle" dist/SHA256SUMS.txt \
               --target "$GITHUB_SHA" --title "Split Android Signed APK · build ${GITHUB_RUN_NUMBER}" \
               --prerelease \
-              --notes "Verified production-signed APK for com.mythos.split ($VERSION). SHA256 checksum included."
+              --notes "Verified production-signed APK and Play AAB for com.mythos.split ($VERSION). SHA256 checksums included."
           fi
           echo "### Direct signed APK download" >> "$GITHUB_STEP_SUMMARY"
-          echo "[Download **$filename**](https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$filename)" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download APK **$filename**](https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$filename)" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download Play AAB **$bundle_name**](https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$bundle_name)" >> "$GITHUB_STEP_SUMMARY"
           echo "Keep the original private signing key securely backed up." >> "$GITHUB_STEP_SUMMARY"

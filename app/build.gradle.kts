@@ -27,12 +27,12 @@ val appVersionName = "$majorVersion.$minorVersion.$patchVersion" +
 
 android {
     namespace = "com.splitapp"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.mythos.split"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
