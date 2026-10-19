@@ -3,8 +3,14 @@ name: Android Debug APK
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
@@ -47,12 +53,12 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;35.0.0"
 
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.11.1'
           cache-provider: basic
 
       - name: Test and compile debug APK
@@ -62,7 +68,8 @@ jobs:
           BUILD_SEQUENCE=$((1000 + $(git rev-list --count HEAD) + GITHUB_RUN_NUMBER + GITHUB_RUN_ATTEMPT - 1))
           test "$BUILD_SEQUENCE" -le 9999
           echo "Rebuild version sequence: $BUILD_SEQUENCE"
-          gradle --no-daemon -PsplitCiRunNumber="$BUILD_SEQUENCE" testDebugUnitTest assembleDebug
+          gradle --no-daemon -PsplitCiRunNumber="$BUILD_SEQUENCE" testDebugUnitTest assembleDebug bundleRelease
+          test -s app/build/outputs/bundle/release/app-release.aab
 
       - name: Verify APK and package checksum
         shell: bash

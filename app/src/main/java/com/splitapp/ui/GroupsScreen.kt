@@ -32,6 +32,7 @@ fun GroupsScreen(
         context.packageManager.getPackageInfo(context.packageName, 0)
     }
     var showCreate by remember { mutableStateOf(false) }
+    var showPrivacy by remember { mutableStateOf(false) }
     val tab = selectedTab
     val archived = tab == 1
     val visibleGroups = remember(groups, filter, archived) {
@@ -118,6 +119,16 @@ fun GroupsScreen(
                                 )
                             }
                         }
+                    }
+                    CompactPanel {
+                        Text("Privacy and your records", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(5.dp))
+                        Text("Split stores group names and expense records locally. It does not require an account or send your ledger to a server.",
+                            style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(6.dp))
+                        Text("Exported backups, PDFs and CSVs are not encrypted. Keep them private and make a backup before uninstalling.",
+                            color = Muted, style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { showPrivacy = true }) { Text("Read privacy policy") }
                     }
                     CompactPanel {
                         Text("About Split", style = MaterialTheme.typography.titleMedium)
@@ -221,6 +232,34 @@ fun GroupsScreen(
                 }
             }
         }
+    }
+    if (showPrivacy) {
+        AlertDialog(
+            onDismissRequest = { showPrivacy = false },
+            title = { Text("Split privacy policy") },
+            text = {
+                Column(Modifier.heightIn(max = 410.dp).verticalScroll(rememberScrollState())) {
+                    Text(
+                        "Split is an offline expense ledger. Group names, traveler names, expenses, " +
+                            "payments, notes and preferences stay on your device. The app has no " +
+                            "account, advertising, analytics or cloud synchronization, and does " +
+                            "not transmit your records to the developer.\n\n" +
+                            "You can choose to export backups, PDFs or CSVs, or share a summary " +
+                            "using another app. Those files and messages are unencrypted and " +
+                            "are handled by the destination you choose. A SHA-256 backup checksum " +
+                            "checks for damage; it does not encrypt the backup.\n\n" +
+                            "Your records remain on your device until you delete them, clear " +
+                            "Split's app storage, or uninstall the app. Clearing storage and " +
+                            "uninstalling remove local records, so export a full backup first. " +
+                            "Split does not keep a remote copy to recover lost records.\n\n" +
+                            "For privacy questions, contact the developer through the support " +
+                            "channel linked from Split's Google Play listing.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { showPrivacy = false }) { Text("Close") } }
+        )
     }
     if (showCreate) CreateGroupDialog(onDismiss = { showCreate = false }) {
         name, currency, firstMember ->
