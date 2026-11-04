@@ -1,4 +1,4 @@
-name: Android Release APK
+name: '01 - Release - Signed Android APK'
 
 on:
   push:

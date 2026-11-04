@@ -1,4 +1,4 @@
-name: 'Maintenance - Actions Run Retention'
+name: '04 - Maintenance - Actions Run Retention'
 
 on:
   schedule:
